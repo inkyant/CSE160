@@ -26,30 +26,23 @@ let u_FragColor;
 let u_Size;
 
 
-class Point {
-    constructor() {
-        this.type = 'point'
-        this.position = [0.0, 0.0, 0.0]
-        this.color = [1.0, 1.0, 1.0, 1.0]
-        this.size = 10.0
-    }
-}
-
 let g_shapesList = [];
 
+let g_selectedShape = 'point'
 let g_selectedColor = [1.0, 1.0, 1.0, 1.0]
 let g_selectedSize = 10.0
+let g_selectedSegment = 10
 let rSlider
 let gSlider
 let bSlider
 let sizeSlider
+let segmentSlider
 
 function main() {
 
     setupWebGL()
     connectVariablesToGLSL()
     addActionsForHtmlUI()
-
 
     // Specify the color for clearing <canvas>
     gl.clearColor(0.0, 0.0, 0.0, 1.0);
@@ -61,56 +54,57 @@ function main() {
 function addActionsForHtmlUI() {
     // Register function (event handler) to be called on a mouse press
     canvas.onmousedown = click;
+    canvas.onmousemove = click;
     document.getElementById('clearButton').onclick = () => { g_shapesList = []; renderAllShapes() }
-    
+    document.getElementById('triangleButton').onclick = () => { g_selectedShape = 'triangle' }
+    document.getElementById('pointButton').onclick = () => { g_selectedShape = 'point' }
+    document.getElementById('circleButton').onclick = () => { g_selectedShape = 'circle' }
+
+
     rSlider = document.getElementById('redSlider')
     gSlider = document.getElementById('greenSlider')
     bSlider = document.getElementById('blueSlider')
     sizeSlider = document.getElementById('sizeSlider')
+    segmentSlider = document.getElementById('segmentSlider')
 
-    rSlider.addEventListener('mouseup',   () => { g_selectedColor[0] = rSlider.value / 100 })
+    rSlider.addEventListener('mouseup', () => { g_selectedColor[0] = rSlider.value / 100 })
     gSlider.addEventListener('mouseup', () => { g_selectedColor[1] = gSlider.value / 100 })
-    bSlider.addEventListener('mouseup',  () => { g_selectedColor[2] = bSlider.value / 100 })
-    sizeSlider.addEventListener('mouseup',  () => { g_selectedSize = (sizeSlider.value / 4) + 5 })
+    bSlider.addEventListener('mouseup', () => { g_selectedColor[2] = bSlider.value / 100 })
+    sizeSlider.addEventListener('mouseup', () => { g_selectedSize = (sizeSlider.value / 4) + 5 })
+    segmentSlider.addEventListener('mouseup', () => { g_selectedSegment = (segmentSlider.value/4)+3 })
 }
 
 function click(ev) {
 
+    if (ev.buttons !== 1) { return }
+
     let p = new Point()
+    if (g_selectedShape === 'triangle') {
+        p = new Triangle()
+    } else if (g_selectedShape === 'circle') {
+        p = new Circle()
+        p.segments = g_selectedSegment
+    }
+
     let [x, y] = convertCoordinatesEventToGL(ev)
 
     p.position = [x, y, 0.0]
     p.color = g_selectedColor.slice()
     p.size = g_selectedSize
-    
+
     g_shapesList.push(p)
 
     renderAllShapes()
 }
 
 const renderAllShapes = () => {
-    // Clear <canvas>
     gl.clear(gl.COLOR_BUFFER_BIT);
 
     let len = g_shapesList.length;
     for (let i = 0; i < len; i++) {
-        let p = g_shapesList[i]
-
-        // Pass the position of a point to a_Position variable
-        gl.vertexAttrib3f(a_Position, p.position[0], p.position[1], 0.0);
-        // Pass the color of a point to u_FragColor variable
-        gl.uniform4f(u_FragColor, p.color[0], p.color[1], p.color[2], p.color[3]);
-        // pass size
-        gl.uniform1f(u_Size, p.size);
-
-        // Draw
-        gl.drawArrays(gl.POINTS, 0, 1);
+        g_shapesList[i].render()
     }
 }
-
-
-
-
 
 
 const connectVariablesToGLSL = () => {
@@ -147,7 +141,7 @@ const setupWebGL = () => {
     canvas = document.getElementById('webgl');
 
     // Get the rendering context for WebGL
-    gl = getWebGLContext(canvas);
+    gl = canvas.getContext("webgl", { preserveDrawingBuffer: true })
     if (!gl) {
         console.log('Failed to get the rendering context for WebGL');
         return;
