@@ -25,6 +25,25 @@ let a_Position;
 let u_FragColor;
 let u_Size;
 
+
+class Point {
+    constructor() {
+        this.type = 'point'
+        this.position = [0.0, 0.0, 0.0]
+        this.color = [1.0, 1.0, 1.0, 1.0]
+        this.size = 10.0
+    }
+}
+
+let g_shapesList = [];
+
+let g_selectedColor = [1.0, 1.0, 1.0, 1.0]
+let g_selectedSize = 10.0
+let rSlider
+let gSlider
+let bSlider
+let sizeSlider
+
 function main() {
 
     setupWebGL()
@@ -39,15 +58,10 @@ function main() {
     gl.clear(gl.COLOR_BUFFER_BIT);
 }
 
-let g_selectedColor = [1.0, 1.0, 1.0, 1.0]
-let g_selectedSize = 10.0
-let rSlider
-let gSlider
-let bSlider
-let sizeSlider
 function addActionsForHtmlUI() {
     // Register function (event handler) to be called on a mouse press
     canvas.onmousedown = click;
+    document.getElementById('clearButton').onclick = () => { g_shapesList = []; renderAllShapes() }
     
     rSlider = document.getElementById('redSlider')
     gSlider = document.getElementById('greenSlider')
@@ -60,20 +74,16 @@ function addActionsForHtmlUI() {
     sizeSlider.addEventListener('mouseup',  () => { g_selectedSize = (sizeSlider.value / 4) + 5 })
 }
 
-let g_points = [];  // The array for the position of a mouse press
-let g_colors = [];  // The array to store the color of a point
-let g_sizes = [];
 function click(ev) {
 
+    let p = new Point()
     let [x, y] = convertCoordinatesEventToGL(ev)
 
-    // Store the coordinates to g_points array
-    g_points.push([x, y]);
-
-    // Store the coordinates to g_points array
-    g_colors.push(g_selectedColor.slice())
-
-    g_sizes.push(g_selectedSize)
+    p.position = [x, y, 0.0]
+    p.color = g_selectedColor.slice()
+    p.size = g_selectedSize
+    
+    g_shapesList.push(p)
 
     renderAllShapes()
 }
@@ -82,18 +92,17 @@ const renderAllShapes = () => {
     // Clear <canvas>
     gl.clear(gl.COLOR_BUFFER_BIT);
 
-    var len = g_points.length;
-    for (var i = 0; i < len; i++) {
-        var xy = g_points[i];
-        var rgba = g_colors[i];
+    let len = g_shapesList.length;
+    for (let i = 0; i < len; i++) {
+        let p = g_shapesList[i]
 
         // Pass the position of a point to a_Position variable
-        gl.vertexAttrib3f(a_Position, xy[0], xy[1], 0.0);
+        gl.vertexAttrib3f(a_Position, p.position[0], p.position[1], 0.0);
         // Pass the color of a point to u_FragColor variable
-        gl.uniform4f(u_FragColor, rgba[0], rgba[1], rgba[2], rgba[3]);
-        
+        gl.uniform4f(u_FragColor, p.color[0], p.color[1], p.color[2], p.color[3]);
         // pass size
-        gl.uniform1f(u_Size, g_sizes[i]);
+        gl.uniform1f(u_Size, p.size);
+
         // Draw
         gl.drawArrays(gl.POINTS, 0, 1);
     }
