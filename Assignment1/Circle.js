@@ -17,11 +17,11 @@ class Circle {
             let dA = (2*Math.PI / this.segments)
             let a = dA*i
             let b = dA*(i+1)
-
+            let s = this.size / 300
             drawTriangle([
                 this.position[0],   this.position[1],
-                this.position[0] + (this.size/100.0)*Math.cos(a), this.position[1] + (this.size/100.0)*Math.sin(a),
-                this.position[0] + (this.size/100.0)*Math.cos(b), this.position[1] + (this.size/100.0)*Math.sin(b),
+                this.position[0] + (s)*Math.cos(a), this.position[1] + (s)*Math.sin(a),
+                this.position[0] + (s)*Math.cos(b), this.position[1] + (s)*Math.sin(b),
             ])
         }
     }

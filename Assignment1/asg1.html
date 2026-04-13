@@ -1,8 +1,9 @@
 <!DOCTYPE html>
+<!-- Anthony Furman apfurman. Special feature: can draw stars -->
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>Change a point color</title>
+    <title>Assignment 1</title>
   </head>
 
   <body onload="main()">
@@ -10,6 +11,7 @@
     Please use a browser that supports "canvas"
     </canvas>
 
+    <button id="imageButton">Draw Image</button>
     <p>
         Red <input type="range" min="0" max="100" value="100" class="slider" id="redSlider"/>
     </p>
@@ -29,6 +31,7 @@
     <button id="pointButton">Point</button>
     <button id="triangleButton">Triangle</button>
     <button id="circleButton">Circle</button>
+    <button id="starButton">Star</button>
     <p>
     <button id="clearButton">Clear</button>
     </p>
@@ -40,5 +43,6 @@
     <script src="Triangle.js"></script>
     <script src="Point.js"></script>
     <script src="Circle.js"></script>
+    <script src="Star.js"></script>
   </body>
 </html>

@@ -49,6 +49,7 @@ function main() {
 
     // Clear <canvas>
     gl.clear(gl.COLOR_BUFFER_BIT);
+    drawImage()
 }
 
 function addActionsForHtmlUI() {
@@ -59,6 +60,8 @@ function addActionsForHtmlUI() {
     document.getElementById('triangleButton').onclick = () => { g_selectedShape = 'triangle' }
     document.getElementById('pointButton').onclick = () => { g_selectedShape = 'point' }
     document.getElementById('circleButton').onclick = () => { g_selectedShape = 'circle' }
+    document.getElementById('starButton').onclick = () => { g_selectedShape = 'star' }
+    document.getElementById('imageButton').onclick = drawImage
 
 
     rSlider = document.getElementById('redSlider')
@@ -84,6 +87,8 @@ function click(ev) {
     } else if (g_selectedShape === 'circle') {
         p = new Circle()
         p.segments = g_selectedSegment
+    } else if (g_selectedShape === 'star') {
+        p = new Star()
     }
 
     let [x, y] = convertCoordinatesEventToGL(ev)
@@ -96,6 +101,100 @@ function click(ev) {
 
     renderAllShapes()
 }
+
+const drawImage = () => {
+    
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.uniform4f(u_FragColor, 186/255, 199/255, 203/255, 1);
+    drawTriangle([-1, 1,  1, 1,  -1, -1])
+    drawTriangle([1, 1,  1, -1,  -1, -1])
+    
+    gl.uniform4f(u_FragColor, 161/255, 128/255, 107/255, 1);
+    drawTriangle([-1, -1,  -0.8, 0.2,  -0.8, -1])
+    drawTriangle([ -0.8, 0.2,  -0.8, -1,  1, -1])
+    drawTriangle([ -0.8, 0.2,  1, -1, 1, 0.2])
+    
+    
+    //blanket
+    gl.uniform4f(u_FragColor, 132/255, 61/255, 29/255, 1);
+    drawTriangle([.2, -.2, .4, -.2, .4, -.6])
+
+    // matress
+    gl.uniform4f(u_FragColor, 193/255, 186/255, 103/255, 1);
+    drawTriangle([0, .2, .6, .2, .2, -.2])
+    drawTriangle([.8, -.2, .6, .2, .2, -.2])
+
+    gl.uniform4f(u_FragColor, 202/255, 170/255, 58/255, 1);
+    
+    // bed feet
+    drawTriangle([0.4, -1,  0.4, -0.8,  0.6, -0.8])
+    drawTriangle([1, -1,  0.8, -0.8,  1, -0.8])
+    
+    // bed end
+    drawTriangle([0.4, -0.8,  1, -0.8,  1, -0.2])
+    drawTriangle([0.4, -0.8,  0.4, -0.2,  1, -0.2])
+    drawTriangle([ 0.4, -0.2,  0.4, 0, 0.6, -0.2])
+    drawTriangle([ 0.8, -0.2,  1, 0, 1, -0.2])
+
+    // bed frame
+    drawTriangle([ 0.4, -0.8,  0.4, -0.6, 0, 0.2])
+    drawTriangle([.6, .2, .8, -.2, 1, -.2])
+    
+    //top bed foot
+    drawTriangle([0, 0, -0.05, 0, 0, 0.2])
+
+    // headboard 
+    drawTriangle([0, 0.2,  0.6, 0.2, 0.6, 0.4])
+    drawTriangle([0, 0.2,  0, .4, 0.6, 0.4])
+    drawTriangle([0, 0.4,  0.3, .5, 0.6, 0.4])
+
+    // table
+    gl.uniform4f(u_FragColor, 150/255, 93/255, 15/255, 1);
+    drawTriangle([-.8, -.1, -.8, .2, -.7, .15])
+    drawTriangle([-.8, .2, -.6, 0.05, -.6, .2])
+    drawTriangle([-.4, .2, -.6, 0.05, -.6, .2])
+    drawTriangle([-.4, .2, -.6, .3, -.6, .2])
+    drawTriangle([-.8, .2, -.6, .3, -.6, .2])
+    drawTriangle([-.6, -.16, -.6, .2, -.5, .2])
+    drawTriangle([-.4, -.06, -.4, .2, -.5, .2])
+
+    //chair
+    gl.uniform4f(u_FragColor, 175/255, 148/255, 30/255, 1);
+    drawTriangle([-.9, -.9, -.8, -.7, -.9, -.5])
+    drawTriangle([-.6, -.97, -.6, -.7, -.55, -.9])
+    drawTriangle([-.5, -.75,   -.5, -.6,   -.46, -.65])
+    drawTriangle([-.8, -.4, -.7, -.55, -.9, -.5])
+
+    gl.uniform4f(u_FragColor, 160/255, 163/255, 94/255, 1);
+    drawTriangle([-.8, -.7, -.6, -.8, -.7, -.7])
+    drawTriangle([-.5, -.6, -.6, -.8, -.7, -.7])
+    drawTriangle([-.5, -.6, -.7, -.55, -.7, -.7])
+    drawTriangle([-.8, -.7, -.7, -.55, -.7, -.7])
+    
+    gl.uniform4f(u_FragColor, 161/255, 128/255, 107/255, 1);
+    drawTriangle([-.95, -.9, -.85, -.7, -.9, -.5])
+    
+    //window
+    gl.uniform4f(u_FragColor, 152/255, 159/255, 84/255, 1);
+    drawTriangle([-.4, 1, -.4, .6, 0, 1])
+    drawTriangle([0, .6, -.4, .6, 0, 1])
+    // window edges    
+    gl.uniform4f(u_FragColor, 52/255, 90/255, 61/255, 1);
+    drawTriangle([-.2, .6, -.2, 1, -.15, .8])
+    drawTriangle([-.4, .8, 0, .8, -.2, 0.75])
+
+    // signature
+    gl.uniform4f(u_FragColor, 1, 0, 0, 1);
+    drawTriangle([-0.98, 1, -0.98, .6, -.9, 0.8])
+    drawTriangle([-.82, 1, -.82, .6, -.9, 0.8])
+    drawTriangle([-.82, 1, -0.98, 1, -.9, 0.95])
+
+    drawTriangle([-.75, .6, -0.75, 1, -.65, 1])
+
+    gl.uniform4f(u_FragColor, 186/255, 199/255, 203/255, 1);
+    drawTriangle([-.65, .8, -0.7, 0.95, -.6, 0.95])
+}
+
 
 const renderAllShapes = () => {
     gl.clear(gl.COLOR_BUFFER_BIT);
