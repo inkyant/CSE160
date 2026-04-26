@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<!-- Anthony Furman apfurman. -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Assignment 2</title>
+  </head>
+
+  <body onload="main()">
+    <canvas id="webgl" width="400" height="400">
+    Please use a browser that supports "canvas"
+    </canvas>  
+    <p>
+        View Angle X <input type="range" min="0" max="360" value="0" class="slider" id="viewSliderX"/>
+    </p>
+    <p>
+        View Angle Y <input type="range" min="0" max="360" value="0" class="slider" id="viewSliderY"/>
+    </p>
+    <p>
+        View Angle Z <input type="range" min="0" max="360" value="0" class="slider" id="viewSliderZ"/>
+    </p>
+
+    <script src="lib/webgl-utils.js"></script>
+    <script src="lib/webgl-debug.js"></script>
+    <script src="lib/cuon-utils.js"></script>
+    <script src="lib/cuon-matrix.js"></script>
+    <script src="asg2.js"></script>
+    <script src="Cube.js"></script>
+  </body>
+</html>
