@@ -38,8 +38,10 @@ function main() {
     connectVariablesToGLSL()
     addActionsForHtmlUI()
 
+    currentViewMatrix.rotate(30, 1, 1, 0)
+
     // Specify the color for clearing <canvas>
-    gl.clearColor(0.0, 0.0, 0.0, 1.0);
+    gl.clearColor(0.2, 0.1, 0.3, 1.0);
     gl.enable(gl.DEPTH_TEST);
 
     // Clear <canvas>
@@ -81,17 +83,11 @@ function updateRotation() {
 function render() {
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-    let m;
-    
-    m = new Matrix4();
-    m.setTranslate(-0.9, -0.9, 0);
-    m.scale(0.1, 0.1, 1);
-    drawCube(1.0, m, 0, 0, 1);
-
-    m = new Matrix4();
-    m.setTranslate(0, 0.2, -0.12);
-    m.scale(0.4, 0.32, 0.24);
-    drawCube(1.0, m, 0.85, 0.60, 0.25);
+    c = new Cube()
+    c.matrix.setTranslate(0, 0.2, -0.12);
+    c.matrix.scale(4, 3.2, 2.4);
+    c.color = [0.85, 0.60, 0.25, 1]
+    c.render()
 }
 
 const drawCube = (sz, m, r, g, b, a) => {
