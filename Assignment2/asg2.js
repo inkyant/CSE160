@@ -29,16 +29,17 @@ let u_GlobalRotateMatrix;
 
 let currentViewMatrix = new Matrix4()
 
-let viewSliderX
-let viewSliderY
-let viewSliderZ
+let viewSliderPitch
+let viewSliderYaw
+
+let g_globalYaw = 0
+let g_globalPitch = 0
+let canvas_drag_sensitivity = 0.7
 
 function main() {
     setupWebGL()
     connectVariablesToGLSL()
     addActionsForHtmlUI()
-
-    currentViewMatrix.rotate(30, 1, 1, 0)
 
     // Specify the color for clearing <canvas>
     gl.clearColor(0.2, 0.1, 0.3, 1.0);
@@ -50,44 +51,86 @@ function main() {
     render()
 }
 
-function addActionsForHtmlUI() {    
-    canvas.onmousedown = click;
-    canvas.onmousemove = click;
+function addActionsForHtmlUI() {
+    viewSliderPitch = document.getElementById('viewSliderPitch')
+    viewSliderYaw = document.getElementById('viewSliderYaw')
+    viewSliderPitch.addEventListener('mousemove', updateRotation)
+    viewSliderYaw.addEventListener('mousemove', updateRotation)
 
-    viewSliderX = document.getElementById('viewSliderX')
-    viewSliderY = document.getElementById('viewSliderY')
-    viewSliderZ = document.getElementById('viewSliderZ')
-    viewSliderX.addEventListener('mousemove', updateRotation)
-    viewSliderY.addEventListener('mousemove', updateRotation)
-    viewSliderZ.addEventListener('mousemove', updateRotation)
-}
+    canvas.onmousedown = (e) => {
 
-function click(ev) {
-    if (ev.buttons !== 1) { return }
+        canvas_x_drag_init = e.clientX;
+        canvas_y_drag_init = e.clientY;
+        canvas_x_drag_prev = e.clientX;
+        canvas_y_drag_prev = e.clientY;
+        canvas_drag_last_poll = performance.now();
+        
 
-    let [x, y] = convertCoordinatesEventToGL(ev)
-    
-    currentViewMatrix.rotate(y*2, 1, 0, 0)
-    currentViewMatrix.rotate(x*2, 0, -1, 0)
+        global_yaw_init = g_globalYaw;
+        global_pitch_init = g_globalPitch;
+        canvas_x_drag_vel = canvas_y_drag_vel = 0;
 
-    render()
+        render();
+
+        canvas.onmousemove = (e) => {
+            const total_x_delta = e.clientX - canvas_x_drag_init;
+            const total_y_delta = e.clientY - canvas_y_drag_init;
+
+            const t_delta = performance.now() - canvas_drag_last_poll;
+            canvas_x_drag_vel = (e.clientX - canvas_x_drag_prev) / t_delta; // delta per ms
+            canvas_y_drag_vel = (e.clientY - canvas_y_drag_prev) / t_delta; // delta per ms
+
+            canvas_x_drag_vel =
+                Math.sign(canvas_x_drag_vel) *
+                Math.sqrt(Math.abs(canvas_x_drag_vel * 0.1)) *
+                0.9;
+            canvas_y_drag_vel =
+                Math.sign(canvas_y_drag_vel) *
+                Math.sqrt(Math.abs(canvas_y_drag_vel * 0.1)) *
+                0.9;
+
+            canvas_x_drag_prev = e.clientX;
+            canvas_y_drag_prev = e.clientY;
+            canvas_drag_last_poll = performance.now();
+
+            g_globalYaw =
+                global_yaw_init - total_x_delta * canvas_drag_sensitivity;
+            g_globalPitch =
+                global_pitch_init - total_y_delta * canvas_drag_sensitivity;
+
+            viewSliderYaw.value = g_globalYaw;
+            viewSliderPitch.value = g_globalPitch;
+
+            currentViewMatrix.setRotate(g_globalPitch, 1, 0, 0)
+            currentViewMatrix.rotate(g_globalYaw, 0, 1, 0)
+            render();
+        };
+        document.onmouseup = () => {
+            canvas.onmousemove = null;
+        };
+    };
 }
 
 function updateRotation() {
-    currentViewMatrix.setRotate(viewSliderX.value, 1, 0, 0)
-    currentViewMatrix.rotate(viewSliderY.value, 0, 1, 0)
-    currentViewMatrix.rotate(viewSliderZ.value, 0, 0, 1)
+    g_globalYaw = viewSliderYaw.value
+    g_globalPitch = viewSliderPitch.value
+    currentViewMatrix.setRotate(viewSliderPitch.value, 1, 0, 0)
+    currentViewMatrix.rotate(viewSliderYaw.value, 0, 1, 0)
     render()
 }
 
 function render() {
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
+    const black = [0, 0, 0, 1]
+    const white = [1, 1, 1, 1]
+
     c = new Cube()
-    c.matrix.setTranslate(0, 0.2, -0.12);
     c.matrix.scale(4, 3.2, 2.4);
-    c.color = [0.85, 0.60, 0.25, 1]
+    c.color = white
     c.render()
+
+
 }
 
 const connectVariablesToGLSL = () => {
