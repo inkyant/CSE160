@@ -31,8 +31,10 @@ let currentViewMatrix = new Matrix4()
 
 let viewSliderPitch
 let viewSliderYaw
-let FL_leg_slider
-let FL_leg_angle = 0
+let thighSlider
+let thighAngle = 0
+let calfSlider
+let calfAngle = 0
 
 let globalYaw = 340
 let globalPitch = 340
@@ -57,10 +59,12 @@ function main() {
 function addActionsForHtmlUI() {
     viewSliderPitch = document.getElementById('viewSliderPitch')
     viewSliderYaw = document.getElementById('viewSliderYaw')
-    FL_leg_slider = document.getElementById('FL_leg_slider')
+    thighSlider = document.getElementById('thighSlider')
+    calfSlider = document.getElementById('calfSlider')
     viewSliderPitch.addEventListener('mousemove', updateRotation)
     viewSliderYaw.addEventListener('mousemove', updateRotation)
-    FL_leg_slider.addEventListener('mousemove', () => {FL_leg_angle = FL_leg_slider.value; render()})
+    thighSlider.addEventListener('mousemove', () => {thighAngle = thighSlider.value; render()})
+    calfSlider.addEventListener('mousemove', () => {calfAngle = calfSlider.value; render()})
 
     canvas.onmousedown = (e) => {
 
@@ -138,22 +142,42 @@ function render() {
     body.scale = [body_width, body_height, body_depth]
     body.render()
 
-    // leg 1: front left
-    l1 = new Cube()
-    l1.scale = [.1, .2, .1]
-    l1.jointRotation = [FL_leg_angle - 30, 0, 0, 1]
-    l1.jointPos = [0, -.1, 0]
-    l1.pos = [-body_width/2 + l1.scale[0]/2-0.01, -body_height/2 - 0.04, -body_depth/2+l1.scale[2]/2-0.01]
-    l1.parent = body
-    l1.render()
+    const offsets = [0, .5, 1, 2]
+    const legScale = [.1, .15, .1]
+    let legPos = [
+        [-body_width/2 + legScale[0]/2-0.01, -body_height/2 - 0.04, -body_depth/2+legScale[2]/2-0.01]
+    ]
 
-    // foot 1
-    f1 = new Cube()
-    f1.scale = [.11, .11, .11]
-    f1.pos = [0, -l1.scale[1]/2, 0]
-    f1.parent = l1
-    f1.color = black
-    f1.render()
+    legPos.push([...legPos[0]], [...legPos[0]], [...legPos[0]])
+    legPos[1][2] *= -1
+    legPos[2][0] *= -1
+    legPos[3][0] *= -1
+    legPos[3][2] *= -1
+
+    for (i = 0; i < 4; i++) {
+        thigh = new Cube()
+        thigh.scale = legScale
+        thigh.jointRotation = [Math.sin(thighAngle/10 + offsets[i])*30, 0, 0, 1]
+        thigh.jointPos = [0, -legScale[1]/2, 0]
+        thigh.pos = legPos[i]
+        thigh.parent = body
+        thigh.render()
+
+        calf = new Cube()
+        calf.parent = thigh
+        calf.scale = [.09, .1, .09]
+        calf.jointPos = [0, -calf.scale[1]/2, 0]
+        calf.jointRotation = [calfAngle/1.5 - 15, 0, 0, 1]
+        calf.pos = [0, -legScale[1]/2 - 0.04, 0]
+        calf.render()
+
+        foot = new Cube()
+        foot.scale = [.11, .11, .11]
+        foot.pos = [0, -calf.scale[1]/2, 0]
+        foot.parent = calf
+        foot.color = black
+        foot.render()
+    }
 }
 
 const connectVariablesToGLSL = () => {

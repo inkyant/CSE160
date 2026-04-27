@@ -70,11 +70,9 @@ class Cube {
         gl.uniformMatrix4fv(u_GlobalRotateMatrix, false, currentViewMatrix.elements);
         
         let m = new Matrix4()
-        let p = this.parent
-        while (p != null) {
-            m.concat(p.matrix)
-
-            p = p.parent
+ 
+        if (this.parent != null) {
+            m.concat(this.parent.matrix)
         }
 
         m.translate(this.pos[0] - this.jointPos[0], this.pos[1] - this.jointPos[1], this.pos[2] - this.jointPos[2])
