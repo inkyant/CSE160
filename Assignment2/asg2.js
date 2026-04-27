@@ -180,6 +180,7 @@ function render() {
 
     const black = [0, 0, 0, 1]
     const white = [1, 1, 1, 1]
+    const pink = [1, .66, .94, 1]
 
     const body_width = .5
     const body_height = .35
@@ -223,7 +224,7 @@ function render() {
         calf.render()
 
         let foot = new Cube()
-        foot.scale = [.11, .11, .11]
+        foot.scale = [.11, .07, .11]
         foot.pos = [0, -calf.scale[1]/2, 0]
         foot.parent = calf
         foot.color = black
@@ -250,6 +251,92 @@ function render() {
     head.jointRotation = [headAngle, 0, 0, 1]
     head.jointPos = [-0.08, 0, 0]
     head.render()
+
+    let udders = new Cube()
+    udders.scale = [.15, .08, .15]
+    udders.pos = [.08, -.2, 0]
+    udders.parent = body
+    udders.color = pink
+    udders.render()
+
+    for (let i = 0; i < 6; i++) {
+        let nip = new Cube()
+        nip.scale = [0.02, 0.04, 0.02]
+        nip.pos = [
+            -udders.scale[0]/2 + 0.03 + (i%3)*(udders.scale[0]/3),
+            -0.06,
+            (i > 2 ? -1 : 1 )*0.03
+        ]
+        nip.color = pink
+        nip.parent = udders
+        nip.render()
+    }
+
+    // left spots
+    let spot1 = new Cube()
+    spot1.color = black
+    spot1.scale = [.25, .15, .02]
+    spot1.pos = [0.06, 0, -body_depth/2]
+    spot1.parent = body
+    spot1.render()
+
+    let spot2 = new Cube()
+    spot2.color = black
+    spot2.scale = [.1, .05, .02]
+    spot2.pos = [0, 0.1, -body_depth/2]
+    spot2.parent = body
+    spot2.render()
+
+    let spot3 = new Cube()
+    spot3.color = black
+    spot3.scale = [.1, .05, .02]
+    spot3.pos = [0.1, -0.1, -body_depth/2]
+    spot3.parent = body
+    spot3.render()
+    
+    let spot4 = new Cube()
+    spot4.color = black
+    spot4.scale = [.05, .12, .02]
+    spot4.pos = [-0.15, -0.05, -body_depth/2]
+    spot4.parent = body
+    spot4.render()
+
+    // top spots
+    let spot5 = new Cube()
+    spot5.color = black
+    spot5.scale = [.15, .02, .12]
+    spot5.pos = [0.02, body_height/2, 0]
+    spot5.parent = body
+    spot5.render()
+
+    // right spots
+    let spot6 = new Cube()
+    spot6.color = black
+    spot6.scale = [.25, .15, .02]
+    spot6.pos = [-0.08, 0, body_depth/2]
+    spot6.parent = body
+    spot6.render()
+
+    let spot7 = new Cube()
+    spot7.color = black
+    spot7.scale = [.07, .15, .02]
+    spot7.pos = [0.16, -0.02, body_depth/2]
+    spot7.parent = body
+    spot7.render()
+    
+    let spot8 = new Cube()
+    spot8.color = black
+    spot8.scale = [.05, .12, .02]
+    spot8.pos = [-0.15, -0.05, body_depth/2]
+    spot8.parent = body
+    spot8.render()
+
+    let spot9 = new Cube()
+    spot9.color = black
+    spot9.scale = [.08, .08, .02]
+    spot9.pos = [0.05, 0.07, body_depth/2]
+    spot9.parent = body
+    spot9.render()
 }
 
 const connectVariablesToGLSL = () => {
