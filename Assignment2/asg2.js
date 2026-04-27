@@ -31,9 +31,11 @@ let currentViewMatrix = new Matrix4()
 
 let viewSliderPitch
 let viewSliderYaw
+let FL_leg_slider
+let FL_leg_angle = 0
 
-let g_globalYaw = 0
-let g_globalPitch = 0
+let globalYaw = 340
+let globalPitch = 340
 let canvas_drag_sensitivity = 0.7
 
 function main() {
@@ -42,20 +44,23 @@ function main() {
     addActionsForHtmlUI()
 
     // Specify the color for clearing <canvas>
-    gl.clearColor(0.2, 0.1, 0.3, 1.0);
+    gl.clearColor(0.1, 0.5, 0.2, 1.0);
     gl.enable(gl.DEPTH_TEST);
 
     // Clear <canvas>
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
+    updateRotation()
     render()
 }
 
 function addActionsForHtmlUI() {
     viewSliderPitch = document.getElementById('viewSliderPitch')
     viewSliderYaw = document.getElementById('viewSliderYaw')
+    FL_leg_slider = document.getElementById('FL_leg_slider')
     viewSliderPitch.addEventListener('mousemove', updateRotation)
     viewSliderYaw.addEventListener('mousemove', updateRotation)
+    FL_leg_slider.addEventListener('mousemove', () => {FL_leg_angle = FL_leg_slider.value; render()})
 
     canvas.onmousedown = (e) => {
 
@@ -66,8 +71,8 @@ function addActionsForHtmlUI() {
         canvas_drag_last_poll = performance.now();
         
 
-        global_yaw_init = g_globalYaw;
-        global_pitch_init = g_globalPitch;
+        global_yaw_init = globalYaw;
+        global_pitch_init = globalPitch;
         canvas_x_drag_vel = canvas_y_drag_vel = 0;
 
         render();
@@ -93,16 +98,16 @@ function addActionsForHtmlUI() {
             canvas_y_drag_prev = e.clientY;
             canvas_drag_last_poll = performance.now();
 
-            g_globalYaw =
+            globalYaw =
                 global_yaw_init - total_x_delta * canvas_drag_sensitivity;
-            g_globalPitch =
+            globalPitch =
                 global_pitch_init - total_y_delta * canvas_drag_sensitivity;
 
-            viewSliderYaw.value = g_globalYaw;
-            viewSliderPitch.value = g_globalPitch;
+            viewSliderYaw.value = globalYaw;
+            viewSliderPitch.value = globalPitch;
 
-            currentViewMatrix.setRotate(g_globalPitch, 1, 0, 0)
-            currentViewMatrix.rotate(g_globalYaw, 0, 1, 0)
+            currentViewMatrix.setRotate(globalPitch, 1, 0, 0)
+            currentViewMatrix.rotate(globalYaw, 0, 1, 0)
             render();
         };
         document.onmouseup = () => {
@@ -112,8 +117,8 @@ function addActionsForHtmlUI() {
 }
 
 function updateRotation() {
-    g_globalYaw = viewSliderYaw.value
-    g_globalPitch = viewSliderPitch.value
+    globalYaw = viewSliderYaw.value
+    globalPitch = viewSliderPitch.value
     currentViewMatrix.setRotate(viewSliderPitch.value, 1, 0, 0)
     currentViewMatrix.rotate(viewSliderYaw.value, 0, 1, 0)
     render()
@@ -125,12 +130,30 @@ function render() {
     const black = [0, 0, 0, 1]
     const white = [1, 1, 1, 1]
 
-    c = new Cube()
-    c.matrix.scale(4, 3.2, 2.4);
-    c.color = white
-    c.render()
+    const body_width = .5
+    const body_height = .35
+    const body_depth = .3
+    
+    body = new Cube()
+    body.scale = [body_width, body_height, body_depth]
+    body.render()
 
+    // leg 1: front left
+    l1 = new Cube()
+    l1.scale = [.1, .2, .1]
+    l1.jointRotation = [FL_leg_angle - 30, 0, 0, 1]
+    l1.jointPos = [0, -.1, 0]
+    l1.pos = [-body_width/2 + l1.scale[0]/2-0.01, -body_height/2 - 0.04, -body_depth/2+l1.scale[2]/2-0.01]
+    l1.parent = body
+    l1.render()
 
+    // foot 1
+    f1 = new Cube()
+    f1.scale = [.11, .11, .11]
+    f1.pos = [0, -l1.scale[1]/2, 0]
+    f1.parent = l1
+    f1.color = black
+    f1.render()
 }
 
 const connectVariablesToGLSL = () => {
