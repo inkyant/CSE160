@@ -43,6 +43,8 @@ let sliders = []
 let sliderVals = []
 let sliderDir = []
 let isAnimating = false
+let specialAnim = false
+let count = 0
 
 let viewSliderPitch
 let viewSliderYaw
@@ -95,6 +97,10 @@ function addActionsForHtmlUI() {
     requestAnimationFrame(tick)
     
     canvas.onmousedown = (e) => {
+
+        if (e.shiftKey && !specialAnim) {
+            specialAnim = true
+        }
 
         canvas_x_drag_init = e.clientX;
         canvas_y_drag_init = e.clientY;
@@ -157,14 +163,31 @@ function updateRotation() {
 }
 
 let prev_time = 0
+let fps_display = null
+const ANIM_DURATION = 50
 
 function tick() {
+    if (!fps_display) fps_display = document.getElementById('fps')
 
     let time = performance.now()
+    if (prev_time !== 0) {
+        fps_display.textContent = 'FPS: ' + Math.round(1000 / (time - prev_time))
+    }
+    let delta = time - prev_time
+    prev_time = time
 
-    if (isAnimating && time - prev_time > 10) {
+    if (delta > 10 && specialAnim) { 
+        count++
+        if (count > ANIM_DURATION) {
+            count = 0
+            specialAnim = false
+            render()
+        } else {
+            render()
+        }
+    }
 
-        prev_time = performance.now()
+    if (isAnimating && delta > 10) {
 
         for (let i = 0; i < sliderNames.length; i++) {
             if (sliderVals[i] >= parseInt(sliders[i].max))
@@ -392,6 +415,23 @@ function render() {
     ruby2.color = mag
     ruby2.jointRotation = [rubyAngle * 360/50, 0, 1, 0]
     ruby2.render()
+
+    // milk
+    const milkOffset = [0, 10, 15, 5, 20, 25]
+    if (specialAnim) {
+        for (let i = 0; i < 6; i++) {
+            let milk = new Octahedron()
+            milk.parent = udders
+            milk.scale = [0.03, 0.03, 0.03]
+            milk.pos = [
+                -udders.scale[0]/2 + 0.03 + (i%3)*(udders.scale[0]/3),
+                -((count + milkOffset[i])%ANIM_DURATION)*0.01,
+                (i > 2 ? -1 : 1 )*0.03
+            ]
+            console.log(count)
+            milk.render()
+        }
+    }
 }
 
 const connectVariablesToGLSL = () => {
