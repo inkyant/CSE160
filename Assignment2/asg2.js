@@ -427,7 +427,7 @@ function render() {
                 -((count + milkOffset[i])%30)*0.01,
                 (i > 2 ? -1 : 1 )*0.03
             ]
-            console.log(count)
+            
             milk.render()
         }
     }
