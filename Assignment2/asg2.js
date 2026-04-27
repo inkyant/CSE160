@@ -37,7 +37,8 @@ const sliderNames = [
     "bodyXSlider",
     "bodyYSlider",
     "bodyAngleSlider",
-    "rubySlider"
+    "rubySlider",
+    "tailSlider"
 ]
 let sliders = []
 let sliderVals = []
@@ -221,7 +222,8 @@ function render() {
     let bodyX = sliderVals[4]
     let bodyY = sliderVals[5]
     let bodyAngle = sliderVals[6]
-    rubyAngle = sliderVals[7]
+    let rubyAngle = sliderVals[7]
+    let tailAngle = sliderVals[8]
     
     let body = new Cube()
     body.scale = [body_width, body_height, body_depth]
@@ -400,6 +402,15 @@ function render() {
     spot9.pos = [0.05, 0.07, body_depth/2]
     spot9.parent = body
     spot9.render()
+ 
+    let tail = new Cube()
+    tail.parent = body
+    tail.color = black
+    tail.scale = [0.3, 0.05, 0.05]
+    tail.pos = [body_width/2 + tail.scale[0]/2 - 0.1, body_height/2 -0.05, 0]
+    tail.jointPos = [0.2, 0, 0]
+    tail.jointRotation = [-tailAngle, 0, 0, 1]
+    tail.render()
 
     let ruby1 = new Octahedron()
     ruby1.scale = [0.45, 0.8, 0.45]
