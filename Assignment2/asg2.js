@@ -164,7 +164,6 @@ function updateRotation() {
 
 let prev_time = 0
 let fps_display = null
-const ANIM_DURATION = 50
 
 function tick() {
     if (!fps_display) fps_display = document.getElementById('fps')
@@ -178,7 +177,7 @@ function tick() {
 
     if (delta > 10 && specialAnim) { 
         count++
-        if (count > ANIM_DURATION) {
+        if (count > 50) {
             count = 0
             specialAnim = false
             render()
@@ -425,7 +424,7 @@ function render() {
             milk.scale = [0.03, 0.03, 0.03]
             milk.pos = [
                 -udders.scale[0]/2 + 0.03 + (i%3)*(udders.scale[0]/3),
-                -((count + milkOffset[i])%ANIM_DURATION)*0.01,
+                -((count + milkOffset[i])%30)*0.01,
                 (i > 2 ? -1 : 1 )*0.03
             ]
             console.log(count)
