@@ -33,6 +33,11 @@ const sliderNames = [
     "thighSlider",
     "calfSlider",
     "headSlider",
+    "eyeSlider",
+    "bodyXSlider",
+    "bodyYSlider",
+    "bodyAngleSlider",
+    "rubySlider"
 ]
 let sliders = []
 let sliderVals = []
@@ -181,6 +186,7 @@ function render() {
     const black = [0, 0, 0, 1]
     const white = [1, 1, 1, 1]
     const pink = [1, .66, .94, 1]
+    const mag = [184/255, 7/255, 178/255, 1]
 
     const body_width = .5
     const body_height = .35
@@ -189,9 +195,16 @@ function render() {
     let thighAngle = sliderVals[0]
     let calfAngle = sliderVals[1]
     let headAngle = sliderVals[2]
+    let eyeAngle = sliderVals[3]
+    let bodyX = sliderVals[4]
+    let bodyY = sliderVals[5]
+    let bodyAngle = sliderVals[6]
+    rubyAngle = sliderVals[7]
     
     let body = new Cube()
     body.scale = [body_width, body_height, body_depth]
+    body.jointRotation = [bodyAngle-30, 0, 0, 1]
+    body.pos = [(bodyX-50)/100, (bodyY-25)/100, 0]
     body.render()
 
     const offsets = [0, .5, 1, 2]
@@ -251,6 +264,34 @@ function render() {
     head.jointRotation = [headAngle, 0, 0, 1]
     head.jointPos = [-0.08, 0, 0]
     head.render()
+
+    let headSpot = new Cube()
+    headSpot.color = black
+    headSpot.parent = head
+    headSpot.scale = [0.2, 0.15, .06]
+    headSpot.pos = [0, 0.01, -head.scale[2]/2 + headSpot.scale[2]/2 - 0.01]
+    headSpot.render()
+    headSpot.pos[2] *= -1
+    headSpot.render()
+
+    let eye = new Cube()
+    eye.scale = [0.05, 0.05, 0.02]
+    eye.pos = [0.02, 0.02, -0.1]
+    eye.parent = head
+    eye.render()
+    eye.pos[2] *= -1
+    eye.render()
+
+    let eyeball = new Octahedron()
+    eyeball.scale = [0.02, 0.02, 0.02]
+    eyeball.color = black
+    eyeball.parent = head
+    eyeball.pos = [0.0, 0.02, -head.scale[2]/2 - 0.03]
+    eyeball.jointPos = [-0.02, 0, 0]
+    eyeball.jointRotation = [eyeAngle, 0, 0, 1]
+    eyeball.render()
+    eyeball.pos[2] *= -1
+    eyeball.render()
 
     let udders = new Cube()
     udders.scale = [.15, .08, .15]
@@ -337,6 +378,20 @@ function render() {
     spot9.pos = [0.05, 0.07, body_depth/2]
     spot9.parent = body
     spot9.render()
+
+    let ruby1 = new Octahedron()
+    ruby1.scale = [0.45, 0.8, 0.45]
+    ruby1.pos = [-0.7, 0.2, 0.5]
+    ruby1.color = mag
+    ruby1.jointRotation = [rubyAngle * 360/50, 0, 1, 0]
+    ruby1.render()
+
+    let ruby2 = new Octahedron()
+    ruby2.scale = [0.45, 0.8, 0.45]
+    ruby2.pos = [0.7, -0.2, -0.5]
+    ruby2.color = mag
+    ruby2.jointRotation = [rubyAngle * 360/50, 0, 1, 0]
+    ruby2.render()
 }
 
 const connectVariablesToGLSL = () => {
