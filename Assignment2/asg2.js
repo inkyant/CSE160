@@ -29,13 +29,18 @@ let u_GlobalRotateMatrix;
 
 let currentViewMatrix = new Matrix4()
 
+const sliderNames = [
+    "thighSlider",
+    "calfSlider",
+    "headSlider",
+]
+let sliders = []
+let sliderVals = []
+let sliderDir = []
+let isAnimating = false
+
 let viewSliderPitch
 let viewSliderYaw
-let thighSlider
-let thighAngle = 0
-let calfSlider
-let calfAngle = 0
-
 let globalYaw = 340
 let globalPitch = 340
 let canvas_drag_sensitivity = 0.7
@@ -57,15 +62,33 @@ function main() {
 }
 
 function addActionsForHtmlUI() {
+
+    document.getElementById('animButton').onclick = () => { 
+        isAnimating = !isAnimating 
+        document.getElementById('animButton').innerText = isAnimating ? 'Pause Animation' : 'Play Animation'
+    }
+
     viewSliderPitch = document.getElementById('viewSliderPitch')
     viewSliderYaw = document.getElementById('viewSliderYaw')
-    thighSlider = document.getElementById('thighSlider')
-    calfSlider = document.getElementById('calfSlider')
     viewSliderPitch.addEventListener('mousemove', updateRotation)
     viewSliderYaw.addEventListener('mousemove', updateRotation)
-    thighSlider.addEventListener('mousemove', () => {thighAngle = thighSlider.value; render()})
-    calfSlider.addEventListener('mousemove', () => {calfAngle = calfSlider.value; render()})
+    
+    for (let i = 0; i < sliderNames.length; i++) {
+        sliders.push(
+            document.getElementById(sliderNames[i])
+        )
+        sliders[i].addEventListener('mousemove', () => {
+            sliderVals[i] = sliders[i].value
+            render()
+        })
+        sliderVals.push(
+            sliders[i].value
+        )
+        sliderDir.push(1)
+    }
 
+    requestAnimationFrame(tick)
+    
     canvas.onmousedown = (e) => {
 
         canvas_x_drag_init = e.clientX;
@@ -128,6 +151,30 @@ function updateRotation() {
     render()
 }
 
+let prev_time = 0
+
+function tick() {
+
+    let time = performance.now()
+
+    if (isAnimating && time - prev_time > 10) {
+
+        prev_time = performance.now()
+
+        for (let i = 0; i < sliderNames.length; i++) {
+            if (sliderVals[i] >= parseInt(sliders[i].max))
+                sliderDir[i] = -1
+            if (sliderVals[i] <= parseInt(sliders[i].min))
+                sliderDir[i] = 1
+            sliderVals[i] = parseInt(sliderVals[i]) + sliderDir[i]
+            sliders[i].value = sliderVals[i]
+        }
+        render()
+    }
+    
+    requestAnimationFrame(tick)
+}
+
 function render() {
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
@@ -137,8 +184,12 @@ function render() {
     const body_width = .5
     const body_height = .35
     const body_depth = .3
+
+    let thighAngle = sliderVals[0]
+    let calfAngle = sliderVals[1]
+    let headAngle = sliderVals[2]
     
-    body = new Cube()
+    let body = new Cube()
     body.scale = [body_width, body_height, body_depth]
     body.render()
 
@@ -155,7 +206,7 @@ function render() {
     legPos[3][2] *= -1
 
     for (i = 0; i < 4; i++) {
-        thigh = new Cube()
+        let thigh = new Cube()
         thigh.scale = legScale
         thigh.jointRotation = [Math.sin(thighAngle/10 + offsets[i])*30, 0, 0, 1]
         thigh.jointPos = [0, -legScale[1]/2, 0]
@@ -163,7 +214,7 @@ function render() {
         thigh.parent = body
         thigh.render()
 
-        calf = new Cube()
+        let calf = new Cube()
         calf.parent = thigh
         calf.scale = [.09, .1, .09]
         calf.jointPos = [0, -calf.scale[1]/2, 0]
@@ -171,13 +222,34 @@ function render() {
         calf.pos = [0, -legScale[1]/2 - 0.04, 0]
         calf.render()
 
-        foot = new Cube()
+        let foot = new Cube()
         foot.scale = [.11, .11, .11]
         foot.pos = [0, -calf.scale[1]/2, 0]
         foot.parent = calf
         foot.color = black
         foot.render()
     }
+
+    let neck1 = new Cube()
+    neck1.parent = body
+    neck1.color = black
+    neck1.scale = [.06, .25, .25]
+    neck1.pos = [-body_width/2, body_height/2 - neck1.scale[1]/2 +0.01, 0]
+    neck1.render()
+
+    let neck2 = new Cube()
+    neck2.parent = neck1
+    neck2.scale = [.07, .2, .2]
+    neck2.pos = [-0.05, neck1.scale[1]/2 - neck2.scale[1]/2 +0.01, 0]
+    neck2.render()
+
+    let head = new Cube()
+    head.parent = neck2
+    head.scale = [0.3, 0.15, 0.15]
+    head.pos = [-0.15, 0.05, 0]
+    head.jointRotation = [headAngle, 0, 0, 1]
+    head.jointPos = [-0.08, 0, 0]
+    head.render()
 }
 
 const connectVariablesToGLSL = () => {
