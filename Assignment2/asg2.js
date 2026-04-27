@@ -38,7 +38,8 @@ const sliderNames = [
     "bodyYSlider",
     "bodyAngleSlider",
     "rubySlider",
-    "tailSlider"
+    "tailSlider",
+    "addedJointSlider"
 ]
 let sliders = []
 let sliderVals = []
@@ -52,6 +53,19 @@ let viewSliderYaw
 let globalYaw = 340
 let globalPitch = 340
 let canvas_drag_sensitivity = 0.7
+
+let addedJoint = {
+    exists: false,
+    shape: 'cube',
+    size: [0, 0, 0],
+    color: [0, 0, 0, 1],
+    pos: [0, 0, 0],
+    jointPos: [0, 0, 0],
+    jointAxis: [0, 0, 1],
+    jointMax: 0,
+    jointMin: 0,
+    parent: null
+}
 
 function main() {
     setupWebGL()
@@ -74,6 +88,59 @@ function addActionsForHtmlUI() {
     document.getElementById('animButton').onclick = () => { 
         isAnimating = !isAnimating 
         document.getElementById('animButton').innerText = isAnimating ? 'Pause Animation' : 'Play Animation'
+    }
+
+    document.getElementById('addJointButton').onclick = () => {
+        const width  = parseFloat(document.getElementById('widthInput').value)/100  || 0.2;
+        const height = parseFloat(document.getElementById('heightInput').value)/100 || 0.2;
+        const depth  = parseFloat(document.getElementById('depthInput').value)/100  || 0.2;
+
+        const r = parseFloat(document.getElementById('colorR').value) / 255 || 0;
+        const g = parseFloat(document.getElementById('colorG').value) / 255 || 0;
+        const b = parseFloat(document.getElementById('colorB').value) / 255 || 0;
+
+        const posX = parseFloat(document.getElementById('posX').value)/100 || 0;
+        const posY = parseFloat(document.getElementById('posY').value)/100 || 0;
+        const posZ = parseFloat(document.getElementById('posZ').value)/100 || 0;
+
+        const rotAx = document.getElementById('rotationAxis').value;
+
+        const anchorX = parseFloat(document.getElementById('anchorX').value)/100 || 0;
+        const anchorY = parseFloat(document.getElementById('anchorY').value)/100 || 0;
+        const anchorZ = parseFloat(document.getElementById('anchorZ').value)/100 || 0;
+
+        const rotMin = parseFloat(document.getElementById('rotMin').value) || 0;
+        const rotMax = parseFloat(document.getElementById('rotMax').value) || 0;
+
+        const parent = document.getElementById('parentSelect').value;
+        addedJoint.shape = document.getElementById('shape').value;
+
+
+        if (rotMin > rotMax) {
+            let temp = rotMin
+            rotMin = rotMax
+            rotMax = temp
+        }
+
+        addedJoint.exists = true
+        addedJoint.size = [width, height, depth]
+        addedJoint.color = [r, g, b, 1]
+        addedJoint.pos = [posX, posY, posZ]
+        addedJoint.jointPos = [-anchorX, -anchorY, -anchorZ]
+        addedJoint.jointMax = rotMin
+        addedJoint.jointMin = rotMax
+        addedJoint.jointAxis = rotAx == 'Z' ? [0, 0, 1] : (rotAx == 'X' ? [1, 0, 0] : [0, 1, 0])
+        addedJoint.parent = parent
+        let addedJointAngle = (rotMin + rotMax)/2 
+
+        sliders[9].value = addedJointAngle
+        sliderVals[9] = addedJointAngle
+        sliders[9].min = rotMin
+        sliders[9].max = rotMax
+
+        document.getElementById('addJointButton').innerText = 'Update'
+
+        render();
     }
 
     viewSliderPitch = document.getElementById('viewSliderPitch')
@@ -188,7 +255,6 @@ function tick() {
     }
 
     if (isAnimating && delta > 10) {
-
         for (let i = 0; i < sliderNames.length; i++) {
             if (sliderVals[i] >= parseInt(sliders[i].max))
                 sliderDir[i] = -1
@@ -224,6 +290,7 @@ function render() {
     let bodyAngle = sliderVals[6]
     let rubyAngle = sliderVals[7]
     let tailAngle = sliderVals[8]
+    let addedJointAngle = sliderVals[9]
     
     let body = new Cube()
     body.scale = [body_width, body_height, body_depth]
@@ -243,6 +310,9 @@ function render() {
     legPos[3][0] *= -1
     legPos[3][2] *= -1
 
+    let thighs = []
+    let calves = []
+
     for (i = 0; i < 4; i++) {
         let thigh = new Cube()
         thigh.scale = legScale
@@ -251,6 +321,7 @@ function render() {
         thigh.pos = legPos[i]
         thigh.parent = body
         thigh.render()
+        thighs.push(thigh)
 
         let calf = new Cube()
         calf.parent = thigh
@@ -259,6 +330,7 @@ function render() {
         calf.jointRotation = [calfAngle/1.5 - 15, 0, 0, 1]
         calf.pos = [0, -legScale[1]/2 - 0.04, 0]
         calf.render()
+        calves.push(calf)
 
         let foot = new Cube()
         foot.scale = [.11, .07, .11]
@@ -441,6 +513,49 @@ function render() {
             
             milk.render()
         }
+    }
+
+    if (addedJoint.exists) {
+        let added = new Cube()
+        if (addedJoint.shape == 'octahedron') {
+            added = new Octahedron()
+        }
+        
+        added.scale = addedJoint.size
+        added.pos = addedJoint.pos
+        added.color = addedJoint.color
+        added.jointPos = addedJoint.jointPos
+        added.jointRotation = [addedJointAngle, ...addedJoint.jointAxis]
+        
+        if (addedJoint.parent == 'body') {
+            added.parent = body
+        } else if (addedJoint.parent == 'head') {
+            added.parent = head
+        } else if (addedJoint.parent == 'tail') {
+            added.parent = tail
+        } else if (addedJoint.parent == 'ruby1') {
+            added.parent = ruby1
+        } else if (addedJoint.parent == 'ruby2') {
+            added.parent = ruby2
+        } else if (addedJoint.parent == 'thigh1') {
+            added.parent = thighs[0]
+        } else if (addedJoint.parent == 'thigh2') {
+            added.parent = thighs[1]
+        } else if (addedJoint.parent == 'thigh3') {
+            added.parent = thighs[2]
+        } else if (addedJoint.parent == 'thigh4') {
+            added.parent = thighs[3]
+        } else if (addedJoint.parent == 'calf1') {
+            added.parent = calves[0]
+        } else if (addedJoint.parent == 'calf2') {
+            added.parent = calves[1]
+        } else if (addedJoint.parent == 'calf3') {
+            added.parent = calves[2]
+        } else if (addedJoint.parent == 'calf4') {
+            added.parent = calves[3]
+        }
+        
+        added.render()
     }
 }
 

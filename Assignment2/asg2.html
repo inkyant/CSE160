@@ -8,46 +8,145 @@
 
   <body onload="main()">
     <h1>Ruby the Magic Cow</h1>
-    <canvas id="webgl" width="400" height="400">
-    Please use a browser that supports "canvas"
-    </canvas>
-    <div id="fps" style="font-family:monospace;font-size:14px;">FPS: --</div>
-    <p>
-      <button id="animButton">Play Animation</button>
-    </p>
-    <p>
-        Thigh Angle <input type="range" min="0" max="60" value="0" class="slider" id="thighSlider"/>
-    </p>
-    <p>
-        Calf Angle <input type="range" min="0" max="60" value="0" class="slider" id="calfSlider"/>
-    </p>
-    <p>
-        Head Angle <input type="range" min="60" max="80" value="70" class="slider" id="headSlider"/>
-    </p>
-    <p>
-        Eye Spin <input type="range" min="0" max="360" value="0" class="slider" id="eyeSlider"/>
-    </p>
-    <p>
-        Tail Angle <input type="range" min="5" max="35" value="5" class="slider" id="tailSlider"/>
-    </p>
-    <p>
-        Body X <input type="range" min="0" max="100" value="50" class="slider" id="bodyXSlider"/>
-    </p>
-    <p>
-        Body Y <input type="range" min="0" max="50" value="25" class="slider" id="bodyYSlider"/>
-    </p>
-    <p>
-        Body Angle <input type="range" min="0" max="60" value="30" class="slider" id="bodyAngleSlider"/>
-    </p>
-    <p>
-        Spin Crystals <input type="range" min="0" max="50" value="0" class="slider" id="rubySlider"/>
-    </p>
-    <p>
-        Pitch <input type="range" min="0" max="360" value="340" class="slider" id="viewSliderPitch"/>
-    </p>
-    <p>
-        Yaw <input type="range" min="0" max="360" value="340" class="slider" id="viewSliderYaw"/>
-    </p>
+    <div style="display: flex; flex-direction: row;">
+    <div>
+        <canvas id="webgl" width="400" height="400">
+        Please use a browser that supports "canvas"
+        </canvas>
+        <div id="fps" style="font-family:monospace;font-size:14px;">FPS: --</div>
+    
+        <p>
+            Add a Joint! </br>
+            You can add your own shape to the scene, connect it to a parent, and specify around which axis it rotates and be able to rotate it! It will also play in the animation. "Rotation Center" is the point about which the rotation will happen, i.e. all zeros means spinning in place, so change this if you want it to spin about an end. 
+        </p>
+        <button id="addJointButton">Add</button> <br/>
+        <table style="border-spacing: 4px 6px;">
+          <tr>
+            <td>Shape</td>
+            <td>
+              <select id="shape" name="shape">
+                <option value="cube">Cube</option>
+                <option value="octahedron">Octahedron</option>
+              </select>
+            </td>
+          </tr>
+          <tr>
+            <td>Size (0-100)</td>
+            <td>
+              <input type="number" id="widthInput" name="widthInput" min="0" max="100" step="1" size="4" style="width:55px" placeholder="Width" />
+              <input type="number" id="heightInput" name="heightInput" min="0" max="100" step="1" size="4" style="width:55px" placeholder="Height" />
+              <input type="number" id="depthInput" name="depthInput" min="0" max="100" step="1" size="4" style="width:55px" placeholder="Depth" />
+            </td>
+          </tr>
+          <tr>
+            <td>Color (R, G, B)</td>
+            <td>
+              <input type="number" id="colorR" name="colorR" min="0" max="255" step="1" size="4" style="width:50px" placeholder="R" />
+              <input type="number" id="colorG" name="colorG" min="0" max="255" step="1" size="4" style="width:50px" placeholder="G" />
+              <input type="number" id="colorB" name="colorB" min="0" max="255" step="1" size="4" style="width:50px" placeholder="B" />
+            </td>
+          </tr>
+          <tr>
+            <td>Position (X, Y, Z, relative to parent)</td>
+            <td>
+              <input type="number" id="posX" name="posX" step="0.1" size="5" style="width:60px" placeholder="X" />
+              <input type="number" id="posY" name="posY" step="0.1" size="5" style="width:60px" placeholder="Y" />
+              <input type="number" id="posZ" name="posZ" step="0.1" size="5" style="width:60px" placeholder="Z" />
+            </td>
+          </tr>
+        <tr>
+            <td>Rotation Axis (X, Y, Z)</td>
+            <td>
+              <select id="rotationAxis" name="rotationAxis">
+                <option value="Z">Z</option>
+                <option value="X">X</option>
+                <option value="Y">Y</option>
+              </select>
+            </td>
+          </tr>
+          <tr>
+            <td>Rotation Center/Anchor (X, Y, Z, relative to joint center)</td>
+            <td>
+              <input type="number" id="anchorX" name="anchorX" step="0.1" size="5" style="width:60px" placeholder="X" />
+              <input type="number" id="anchorY" name="anchorY" step="0.1" size="5" style="width:60px" placeholder="Y" />
+              <input type="number" id="anchorZ" name="anchorZ" step="0.1" size="5" style="width:60px" placeholder="Z" />
+            </td>
+          </tr>
+          <tr>
+            <td>Rotation Min / Max Angle (deg)</td>
+            <td>
+              <input type="number" id="rotMin" name="rotMin" step="1" size="5" style="width:60px" placeholder="Min" />
+              <input type="number" id="rotMax" name="rotMax" step="1" size="5" style="width:60px" placeholder="Max" />
+            </td>
+          </tr>
+          <tr>
+            <td>Parent Joint</td>
+            <td>
+              <select id="parentSelect" name="parentSelect">
+                <option value="">None</option>
+                <option value="body">Body</option>
+                <option value="head">Head</option>
+                <option value="tail">Tail</option>
+                <option value="ruby1">Crystal 1</option>
+                <option value="ruby2">Crystal 2</option>
+                <option value="thigh1">Front Left Thigh</option>
+                <option value="thigh2">Front Right Thigh</option>
+                <option value="thigh3">Back Left Thigh</option>
+                <option value="thigh4">Back Right Thigh</option>
+                <option value="calf1">Front Left Calf</option>
+                <option value="calf2">Front Right Calf</option>
+                <option value="calf3">Back Left Calf</option>
+                <option value="calf4">Back Right Calf</option>
+              </select>
+            </td>
+          </tr>
+          <tr>
+            <td>Joint Angle</td>
+            <td><input type="range" min="0" max="60" value="30" class="slider" id="addedJointSlider"/>
+                </td>
+            </tr>
+        </table>
+
+    </div>
+    <div style="margin-left: 5%;">
+        <p>
+        <button id="animButton">Play Animation</button>
+        </p>
+        <p>
+            Thigh Angle <input type="range" min="0" max="60" value="0" class="slider" id="thighSlider"/>
+        </p>
+        <p>
+            Calf Angle <input type="range" min="0" max="60" value="0" class="slider" id="calfSlider"/>
+        </p>
+        <p>
+            Head Angle <input type="range" min="60" max="80" value="70" class="slider" id="headSlider"/>
+        </p>
+        <p>
+            Eye Spin <input type="range" min="0" max="360" value="0" class="slider" id="eyeSlider"/>
+        </p>
+        <p>
+            Tail Angle <input type="range" min="5" max="35" value="5" class="slider" id="tailSlider"/>
+        </p>
+        <p>
+            Body X <input type="range" min="0" max="100" value="50" class="slider" id="bodyXSlider"/>
+        </p>
+        <p>
+            Body Y <input type="range" min="0" max="50" value="25" class="slider" id="bodyYSlider"/>
+        </p>
+        <p>
+            Body Angle <input type="range" min="0" max="60" value="30" class="slider" id="bodyAngleSlider"/>
+        </p>
+        <p>
+            Spin Crystals <input type="range" min="0" max="50" value="0" class="slider" id="rubySlider"/>
+        </p>
+        <p>
+            Pitch <input type="range" min="0" max="360" value="340" class="slider" id="viewSliderPitch"/>
+        </p>
+        <p>
+            Yaw <input type="range" min="0" max="360" value="340" class="slider" id="viewSliderYaw"/>
+        </p>
+    </div>
+    </div>
 
     <script src="lib/webgl-utils.js"></script>
     <script src="lib/webgl-debug.js"></script>
