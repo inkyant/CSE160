@@ -4,11 +4,13 @@ var VSHADER_SOURCE = `
 attribute vec4 a_Position;
 uniform mat4 u_ModelMatrix;
 uniform mat4 u_GlobalRotateMatrix;
+uniform mat4 u_ProjectionMatrix;
+uniform mat4 u_ViewMatrix;
 attribute vec2 a_uv;
 varying vec2 vUv;
 
 void main() {
-  gl_Position = u_GlobalRotateMatrix * u_ModelMatrix * a_Position;
+  gl_Position = u_ProjectionMatrix * u_ViewMatrix * u_GlobalRotateMatrix * u_ModelMatrix * a_Position;
 
   vUv = a_uv;
 }
@@ -36,6 +38,8 @@ let u_FragColor;
 let u_texColorWeight;
 let u_ModelMatrix;
 let u_GlobalRotateMatrix;
+let u_ViewMatrix;
+let u_ProjectionMatrix;
 let a_uv;
 let uTexture0;
 
@@ -44,6 +48,10 @@ let currentViewMatrix = new Matrix4()
 let globalYaw = 0
 let globalPitch = 0
 let canvas_drag_sensitivity = 0.7
+
+let g_eye = [0, 0, 2]
+let g_at = [0, 0, 1]
+let g_up = [0, 1, 0]
 
 function main() {
     setupWebGL()
@@ -65,6 +73,8 @@ function main() {
 
 function addActionsForHtmlUI() {
     
+    document.onkeydown = keydown
+
     canvas.onmousedown = (e) => {
 
         if (e.shiftKey && !specialAnim) {
@@ -123,9 +133,67 @@ function addActionsForHtmlUI() {
 function renderPage() {
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
+    let viewMat = new Matrix4()
+    viewMat.setLookAt(...g_eye, ...g_at, ...g_up) // eye, at, up
+    gl.uniformMatrix4fv(u_ViewMatrix, false, viewMat.elements)
+
+    let projectionMat = new Matrix4()
+    projectionMat.setPerspective(60, canvas.width/canvas.height, .1, 100)
+    gl.uniformMatrix4fv(u_ProjectionMatrix, false, projectionMat.elements)
+
     let c = new Cube()
     c.setImage("grass.png")
     c.render()
+}
+
+function keydown(ev) {
+    let at = new Vector3(g_at)
+    let eye = new Vector3(g_eye)
+    let up = new Vector3(g_up)
+    if (ev.keyCode == 87) {
+        // W
+        let d = at.sub(eye)
+        d.normalize()
+        d.mul(0.5)
+        eye = eye.add(d)
+        at = at.add(d)
+    }
+    else if (ev.keyCode == 83) {
+        // S
+        let d = at.sub(eye)
+        d.normalize()
+        d.mul(0.5)
+        eye = eye.sub(d)
+        at = at.sub(d)
+    }
+    else if (ev.keyCode == 65) {
+        // A
+        let d = at.sub(eye)
+        d = Vector3.cross(d, up)
+        d.normalize()
+        d.mul(0.5)
+        eye = eye.sub(d)
+        at = at.sub(d)
+    }
+    else if (ev.keyCode == 68) {
+        // D
+        let d = at.sub(eye)
+        d = Vector3.cross(d, up)
+        d.normalize()
+        d.mul(0.5)
+        eye = eye.add(d)
+        at = at.add(d)
+    }
+    else if (ev.keyCode == 81) {
+        // Q
+    }
+    else if (ev.keyCode == 69) {
+        // E
+    }
+    g_at = at.elements.slice()
+    g_eye = eye.elements.slice()
+    g_up = up.elements.slice()
+    renderPage()
 }
 
 const connectVariablesToGLSL = () => {
@@ -167,6 +235,20 @@ const connectVariablesToGLSL = () => {
     u_GlobalRotateMatrix = gl.getUniformLocation(gl.program, 'u_GlobalRotateMatrix');
     if (!u_GlobalRotateMatrix) {
         console.log('Failed to get the storage location of u_GlobalRotateMatrix');
+        return;
+    }
+
+    // Get the storage location of u_ViewMatrix
+    u_ViewMatrix = gl.getUniformLocation(gl.program, 'u_ViewMatrix');
+    if (!u_ViewMatrix) {
+        console.log('Failed to get the storage location of u_ViewMatrix');
+        return;
+    }
+    
+    // Get the storage location of u_ProjectionMatrix
+    u_ProjectionMatrix = gl.getUniformLocation(gl.program, 'u_ProjectionMatrix');
+    if (!u_ProjectionMatrix) {
+        console.log('Failed to get the storage location of u_ProjectionMatrix');
         return;
     }
 

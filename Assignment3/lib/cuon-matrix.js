@@ -695,37 +695,124 @@ Matrix4.prototype.dropShadowDirectionally = function(normX, normY, normZ, planeX
   return this.dropShadow([normX, normY, normZ, -a], [lightX, lightY, lightZ, 0]);
 };
 
-/**
- * Constructor of Vector3
- * If opt_src is specified, new vector is initialized by opt_src.
- * @param opt_src source vector(option)
- */
-var Vector3 = function(opt_src) {
-  var v = new Float32Array(3);
-  if (opt_src && typeof opt_src === 'object') {
-    v[0] = opt_src[0]; v[1] = opt_src[1]; v[2] = opt_src[2];
-  } 
-  this.elements = v;
-}
+class Vector3 {
+    constructor(opt_src) {
+        var v = new Float32Array(3);
+        if (opt_src && typeof opt_src === 'object') {
+          v[0] = opt_src[0];
+          v[1] = opt_src[1];
+          v[2] = opt_src[2];
+        }
+        this.elements = v;
+    }
 
-/**
-  * Normalize.
-  * @return this
-  */
-Vector3.prototype.normalize = function() {
-  var v = this.elements;
-  var c = v[0], d = v[1], e = v[2], g = Math.sqrt(c*c+d*d+e*e);
-  if(g){
-    if(g == 1)
+    /**
+     * Copy vector.
+     * @param src source vector
+     * @return this
+     */
+    set(src) {
+        var i, s, d;
+
+        s = src.elements;
+        d = this.elements;
+
+        if (s === d) {
+          return;
+        }
+
+        for (i = 0; i < 3; ++i) {
+          d[i] = s[i];
+        }
+
         return this;
-   } else {
-     v[0] = 0; v[1] = 0; v[2] = 0;
-     return this;
-   }
-   g = 1/g;
-   v[0] = c*g; v[1] = d*g; v[2] = e*g;
-   return this;
-};
+    }
+
+    /**
+      * Add other to this vector.
+      * @return this
+      */
+    add(other) {
+        this.elements[0] += other.elements[0]
+        this.elements[1] += other.elements[1]
+        this.elements[2] += other.elements[2]
+        return this;
+    };
+
+    /**
+      * Subtract other from this vector.
+      * @return this
+      */
+    sub(other) {
+        this.elements[0] -= other.elements[0]
+        this.elements[1] -= other.elements[1]
+        this.elements[2] -= other.elements[2]
+        return this;
+    };
+
+    /**
+      * Divide this vector by a scalar.
+      * @return this
+      */
+    div(scalar) {
+        this.elements[0] /= scalar
+        this.elements[1] /= scalar
+        this.elements[2] /= scalar
+        return this;
+    };
+
+    /**
+      * Multiply this vector by a scalar.
+      * @return this
+      */
+    mul(scalar) {
+        this.elements[0] *= scalar
+        this.elements[1] *= scalar
+        this.elements[2] *= scalar
+        return this;
+    };
+
+    /**
+      * Calcualte the dot product between this vector and other.
+      * @return scalar
+      */
+    static dot(other1, other2) {
+        let d = other1.elements[0]*other2.elements[0] + other1.elements[1]*other2.elements[1] + other1.elements[2]*other2.elements[2]
+        return d;
+    }
+
+    /**
+      * Calcualte the cross product between this vector and other.
+      * @return new vector
+      */
+    static cross(other1, other2) {
+        let v3 = new Vector3([
+          other1.elements[1]*other2.elements[2] - other1.elements[2]*other2.elements[1],
+          other1.elements[2]*other2.elements[0] - other1.elements[0]*other2.elements[2],
+          other1.elements[0]*other2.elements[1] - other1.elements[1]*other2.elements[0]
+        ])
+        return v3;
+    }
+
+    /**
+      * Calculate the magnitude (or length) of this vector.
+      * @return scalar
+      */
+    magnitude() {
+        let m = Math.sqrt(this.elements[0]*this.elements[0] + this.elements[1]*this.elements[1] + this.elements[2]*this.elements[2])
+        return m;
+    };
+
+    /**
+      * Normalize this vector.
+      * @return this
+      */
+    normalize() {
+        let m = this.magnitude()
+        this.div(m)
+        return this;
+    };
+}
 
 /**
  * Constructor of Vector4
