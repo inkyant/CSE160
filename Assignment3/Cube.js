@@ -12,7 +12,7 @@ class Cube {
 
         // texture
         this.texture0 = null
-        this.textureLoaded = false
+        this.textureBlend = 1.0
     }
 
     setImage(image) {
@@ -31,7 +31,6 @@ class Cube {
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
             gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, img);
             gl.uniform1i(uTexture0, 0);
-            this.textureLoaded = true
         }
 
         img.src = image
@@ -161,6 +160,8 @@ class Cube {
         gl.bufferData(gl.ARRAY_BUFFER, uvs, gl.DYNAMIC_DRAW);
         gl.vertexAttribPointer(a_uv, 2, gl.FLOAT, false, 0, 0);
         gl.enableVertexAttribArray(a_uv);
+
+        gl.uniform1f(u_texColorWeight, this.textureBlend)
 
         // Draw
         let r = this.color[0];

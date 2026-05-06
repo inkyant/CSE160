@@ -18,11 +18,12 @@ void main() {
 var FSHADER_SOURCE = `
 precision mediump float;
 uniform vec4 u_FragColor;
+uniform float u_texColorWeight;
 uniform sampler2D uTexture0;
 varying vec2 vUv;
 void main() {
   vec4 image0 = texture2D(uTexture0, vUv);
-  gl_FragColor = image0 + 0.0*u_FragColor;
+  gl_FragColor = u_texColorWeight*image0 + (1.0 - u_texColorWeight)*u_FragColor;
 }
 `;
 
@@ -32,6 +33,7 @@ let canvas;
 let gl;
 let a_Position;
 let u_FragColor;
+let u_texColorWeight;
 let u_ModelMatrix;
 let u_GlobalRotateMatrix;
 let a_uv;
@@ -144,6 +146,13 @@ const connectVariablesToGLSL = () => {
     u_FragColor = gl.getUniformLocation(gl.program, 'u_FragColor');
     if (!u_FragColor) {
         console.log('Failed to get the storage location of u_FragColor');
+        return;
+    }
+    
+    // Get the storage location of u_texColorWeight
+    u_texColorWeight = gl.getUniformLocation(gl.program, 'u_texColorWeight');
+    if (!u_texColorWeight) {
+        console.log('Failed to get the storage location of u_texColorWeight');
         return;
     }
 
