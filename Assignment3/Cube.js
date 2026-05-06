@@ -27,7 +27,9 @@ class Cube {
             gl.activeTexture(gl.TEXTURE0)
             gl.bindTexture(gl.TEXTURE_2D, this.texture0)
             gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR)
-            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, img);
             gl.uniform1i(uTexture0, 0);
             this.textureLoaded = true
         }
@@ -122,19 +124,33 @@ class Cube {
         gl.vertexAttribPointer(a_Position, 3, gl.FLOAT, false, 0, 0);
         gl.enableVertexAttribArray(a_Position);
 
+        // let uvs = new Float32Array([
+        //     // FRONT
+        //     0,0, 1,0, 0,1, 1,1, 1,0, 0,1,
+        //     // BOTTOM
+        //     0,0, 1,0, 0,1, 1,1, 1,0, 0,1,
+        //     // LEFT
+        //     1,0, 0,0, 1,1, 0,1, 0,0, 1,1,
+        //     // TOP
+        //     0,1, 0,0, 1,0,  0,1, 1,1, 1,0,
+        //     // RIGHT
+        //     0,0, 1,1, 0,1, 0,0, 1,1, 1,0,
+        //     // BACK
+        //     0,0, 1,0, 0,1, 1,1, 1,0, 0,1,
+        // ]);
         let uvs = new Float32Array([
             // FRONT
-            0,0, 1,0, 0,1, 1,1, 1,0, 0,1,
+            0.25,0.333, .5,.333, .25,.666, .5,.666, .5,.333, .25,.666,
             // BOTTOM
-            0,0, 1,0, 0,1, 1,1, 1,0, 0,1,
+            .5,0, .25,0, .5,.333, .25,.333, .25,0, .5,.333,
             // LEFT
-            1,0, 0,0, 1,1, 0,1, 0,0, 1,1,
+            .25,1/3, 0,1/3, .25,2/3, 0,2/3, 0,1/3, .25,2/3,
             // TOP
-            0,1, 0,0, 1,0,  0,1, 1,1, 1,0,
+            1/4,1, 1/4,2/3, 2/4,2/3,  1/4,1, 1/2,1, 1/2,2/3,
             // RIGHT
-            0,0, 1,1, 0,1, 0,0, 1,1, 1,0,
+            2/4,1/3, 3/4,2/3, 2/4,2/3, 2/4,1/3, 3/4,2/3, 3/4,1/3,
             // BACK
-            0,0, 1,0, 0,1, 1,1, 1,0, 0,1,
+            3/4,1/3, 1,1/3, 3/4,2/3, 1,2/3, 1,1/3, 3/4,2/3,
         ]);
         let uvBuffer = gl.createBuffer();
         if (!uvBuffer) {

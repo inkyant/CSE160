@@ -22,7 +22,7 @@ uniform sampler2D uTexture0;
 varying vec2 vUv;
 void main() {
   vec4 image0 = texture2D(uTexture0, vUv);
-  gl_FragColor = 0.5*image0 + 0.5*u_FragColor;
+  gl_FragColor = image0 + 0.0*u_FragColor;
 }
 `;
 
@@ -122,7 +122,7 @@ function renderPage() {
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
     let c = new Cube()
-    c.setImage("uvCoords.png")
+    c.setImage("grass.png")
     c.render()
 }
 
