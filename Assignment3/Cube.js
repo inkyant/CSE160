@@ -167,22 +167,7 @@ class Cube {
         let b = this.color[2];
         let a = this.color[3];
         gl.uniform4f(u_FragColor, r, g, b, a);
-        gl.drawArrays(gl.TRIANGLES, 0, 6);
-
-        gl.uniform4f(u_FragColor, 0.9*r, 0.9*g, 0.9*b, a);
-        gl.drawArrays(gl.TRIANGLES, 6, 6);
-
-        gl.uniform4f(u_FragColor, 0.8*r, 0.8*g, 0.8*b, a);
-        gl.drawArrays(gl.TRIANGLES, 12, 6);
-
-        gl.uniform4f(u_FragColor, 0.75*r, 0.75*g, 0.75*b, a);
-        gl.drawArrays(gl.TRIANGLES, 18, 6);
-        
-        gl.uniform4f(u_FragColor, 0.95*r, 0.95*g, 0.95*b, a);
-        gl.drawArrays(gl.TRIANGLES, 24, 6);
-        
-        gl.uniform4f(u_FragColor, 0.7*r, 0.7*g, 0.7*b, a);
-        gl.drawArrays(gl.TRIANGLES, 30, 6);
+        gl.drawArrays(gl.TRIANGLES, 0, 36);
     }
 
 }

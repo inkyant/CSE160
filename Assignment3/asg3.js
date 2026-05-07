@@ -45,6 +45,11 @@ let g_eye = [0, 0, 2]
 let g_at = [0, 0, 1]
 let g_up = [0, 1, 0]
 
+let g_isDragging = false
+let g_lastMouseX = 0
+let g_lastMouseY = 0
+const MOUSE_SENSITIVITY = 0.005
+
 let map = []
 
 function main() {
@@ -67,7 +72,7 @@ function main() {
 
 function createMap() {
 
-    const MAP_SIZE = 50
+    const MAP_SIZE = 40
 
     const hills = [
         [Math.random()*MAP_SIZE, Math.random()*MAP_SIZE]
@@ -94,6 +99,45 @@ function createMap() {
 
 function addActionsForHtmlUI() {
     document.onkeydown = keydown
+    canvas.onmousedown = (ev) => {
+        g_isDragging = true
+        g_lastMouseX = ev.clientX
+        g_lastMouseY = ev.clientY
+    }
+    canvas.onmouseup = () => { g_isDragging = false }
+    canvas.onmouseleave = () => { g_isDragging = false }
+    canvas.onmousemove = mousemove
+}
+
+function mousemove(ev) {
+    if (!g_isDragging) return
+    const dx = ev.clientX - g_lastMouseX
+    const dy = ev.clientY - g_lastMouseY
+    g_lastMouseX = ev.clientX
+    g_lastMouseY = ev.clientY
+
+    const fx = g_at[0] - g_eye[0]
+    const fy = g_at[1] - g_eye[1]
+    const fz = g_at[2] - g_eye[2]
+    const r = Math.sqrt(fx*fx + fy*fy + fz*fz)
+
+    let yaw = Math.atan2(fz, fx)
+    let pitch = Math.asin(fy / r)
+
+    yaw += dx * MOUSE_SENSITIVITY
+    pitch -= dy * MOUSE_SENSITIVITY
+
+    const PITCH_MAX = Math.PI / 2 - 0.01
+    if (pitch > PITCH_MAX) pitch = PITCH_MAX
+    if (pitch < -PITCH_MAX) pitch = -PITCH_MAX
+
+    g_at = [
+        g_eye[0] + r * Math.cos(pitch) * Math.cos(yaw),
+        g_eye[1] + r * Math.sin(pitch),
+        g_eye[2] + r * Math.cos(pitch) * Math.sin(yaw),
+    ]
+
+    renderPage()
 }
 
 function renderPage() {
