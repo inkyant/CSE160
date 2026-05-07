@@ -3,14 +3,13 @@
 var VSHADER_SOURCE = `
 attribute vec4 a_Position;
 uniform mat4 u_ModelMatrix;
-uniform mat4 u_GlobalRotateMatrix;
 uniform mat4 u_ProjectionMatrix;
 uniform mat4 u_ViewMatrix;
 attribute vec2 a_uv;
 varying vec2 vUv;
 
 void main() {
-  gl_Position = u_ProjectionMatrix * u_ViewMatrix * u_GlobalRotateMatrix * u_ModelMatrix * a_Position;
+  gl_Position = u_ProjectionMatrix * u_ViewMatrix * u_ModelMatrix * a_Position;
 
   vUv = a_uv;
 }
@@ -37,26 +36,23 @@ let a_Position;
 let u_FragColor;
 let u_texColorWeight;
 let u_ModelMatrix;
-let u_GlobalRotateMatrix;
 let u_ViewMatrix;
 let u_ProjectionMatrix;
 let a_uv;
 let uTexture0;
 
-let currentViewMatrix = new Matrix4()
-
-let globalYaw = 0
-let globalPitch = 0
-let canvas_drag_sensitivity = 0.7
-
 let g_eye = [0, 0, 2]
 let g_at = [0, 0, 1]
 let g_up = [0, 1, 0]
+
+let map = []
 
 function main() {
     setupWebGL()
     connectVariablesToGLSL()
     addActionsForHtmlUI()
+
+    createMap()
 
     // Specify the color for clearing <canvas>
     gl.clearColor(0.1, 0.5, 0.2, 1.0);
@@ -65,69 +61,39 @@ function main() {
     // Clear <canvas>
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-    currentViewMatrix.setRotate(globalPitch, 1, 0, 0)
-    currentViewMatrix.rotate(globalYaw, 0, 1, 0)
     renderPage()
     setTimeout(renderPage, 10)
 }
 
-function addActionsForHtmlUI() {
-    
-    document.onkeydown = keydown
+function createMap() {
 
-    canvas.onmousedown = (e) => {
+    const MAP_SIZE = 50
 
-        if (e.shiftKey && !specialAnim) {
-            specialAnim = true
+    const hills = [
+        [Math.random()*MAP_SIZE, Math.random()*MAP_SIZE]
+    ]
+
+    const dist = (a, b) => {
+        return Math.sqrt(Math.pow(a[0] - b[0], 2) + Math.pow(a[1] - b[1], 2))
+    }
+
+    for (let i = 0; i < MAP_SIZE; i++) {
+        for (let j = 0; j < MAP_SIZE; j++) {
+            let height = -2 + (Math.random() > .99)
+            if (dist(hills[0], [i, j]) == 0) {
+                height += 2 + Math.random() > .1
+            } else if (dist(hills[0], [i, j]) < 2) {
+                height += 1 + Math.random() > .1
+            } else if (dist(hills[0], [i, j]) < 5) {
+                height += Math.random() > .1
+            }
+            map.push([i-MAP_SIZE/2, height, j-MAP_SIZE/2])
         }
+    }
+}
 
-        canvas_x_drag_init = e.clientX;
-        canvas_y_drag_init = e.clientY;
-        canvas_x_drag_prev = e.clientX;
-        canvas_y_drag_prev = e.clientY;
-        canvas_drag_last_poll = performance.now();
-        
-
-        global_yaw_init = globalYaw;
-        global_pitch_init = globalPitch;
-        canvas_x_drag_vel = canvas_y_drag_vel = 0;
-
-        renderPage();
-
-        canvas.onmousemove = (e) => {
-            const total_x_delta = e.clientX - canvas_x_drag_init;
-            const total_y_delta = e.clientY - canvas_y_drag_init;
-
-            const t_delta = performance.now() - canvas_drag_last_poll;
-            canvas_x_drag_vel = (e.clientX - canvas_x_drag_prev) / t_delta; // delta per ms
-            canvas_y_drag_vel = (e.clientY - canvas_y_drag_prev) / t_delta; // delta per ms
-
-            canvas_x_drag_vel =
-                Math.sign(canvas_x_drag_vel) *
-                Math.sqrt(Math.abs(canvas_x_drag_vel * 0.1)) *
-                0.9;
-            canvas_y_drag_vel =
-                Math.sign(canvas_y_drag_vel) *
-                Math.sqrt(Math.abs(canvas_y_drag_vel * 0.1)) *
-                0.9;
-
-            canvas_x_drag_prev = e.clientX;
-            canvas_y_drag_prev = e.clientY;
-            canvas_drag_last_poll = performance.now();
-
-            globalYaw =
-                global_yaw_init - total_x_delta * canvas_drag_sensitivity;
-            globalPitch =
-                global_pitch_init - total_y_delta * canvas_drag_sensitivity;
-
-            currentViewMatrix.setRotate(globalPitch, 1, 0, 0)
-            currentViewMatrix.rotate(globalYaw, 0, 1, 0)
-            renderPage();
-        };
-        document.onmouseup = () => {
-            canvas.onmousemove = null;
-        };
-    };
+function addActionsForHtmlUI() {
+    document.onkeydown = keydown
 }
 
 function renderPage() {
@@ -141,54 +107,52 @@ function renderPage() {
     projectionMat.setPerspective(60, canvas.width/canvas.height, .1, 100)
     gl.uniformMatrix4fv(u_ProjectionMatrix, false, projectionMat.elements)
 
+    let sky = new Cube()
+    sky.scale = [100, 100, 100]
+    sky.color = [120/255, 241/255, 250/255, 1]
+    sky.textureBlend = 0.0
+    sky.render()
     let c = new Cube()
     c.setImage("grass.png")
-    c.render()
+    
+    for (const pos of map) {
+        let a = new Cube()
+        a.pos = pos
+        a.render()
+    }
 }
 
 function keydown(ev) {
     let at = new Vector3(g_at)
     let eye = new Vector3(g_eye)
     let up = new Vector3(g_up)
-    if (ev.keyCode == 87) {
-        // W
+    if (ev.keyCode == 87 || ev.keyCode == 83) {
+        // W, A
         let d = at.sub(eye)
-        d.normalize()
-        d.mul(0.5)
+        d = d.normalize().mul(0.5)
+        if (ev.keyCode == 83) {d = d.mul(-1)}
         eye = eye.add(d)
         at = at.add(d)
     }
-    else if (ev.keyCode == 83) {
-        // S
+    else if (ev.keyCode == 65 || ev.keyCode == 68) {
+        // A, D
         let d = at.sub(eye)
-        d.normalize()
-        d.mul(0.5)
+        d = Vector3.cross(d, up)
+        d = d.normalize().mul(0.5)
+        if (ev.keyCode == 68) {d = d.mul(-1)}
         eye = eye.sub(d)
         at = at.sub(d)
     }
-    else if (ev.keyCode == 65) {
-        // A
+    else if (ev.keyCode == 81 || ev.keyCode == 69) {
+        // Q, E
+
         let d = at.sub(eye)
-        d = Vector3.cross(d, up)
-        d.normalize()
-        d.mul(0.5)
-        eye = eye.sub(d)
-        at = at.sub(d)
-    }
-    else if (ev.keyCode == 68) {
-        // D
-        let d = at.sub(eye)
-        d = Vector3.cross(d, up)
-        d.normalize()
-        d.mul(0.5)
-        eye = eye.add(d)
-        at = at.add(d)
-    }
-    else if (ev.keyCode == 81) {
-        // Q
-    }
-    else if (ev.keyCode == 69) {
-        // E
+        let r = d.magnitude()
+        let theta = Math.atan2(d.elements[2], d.elements[0])
+        theta += ((ev.keyCode == 69) ? 0.05 : -0.05)
+
+        let change = new Vector3([r*Math.cos(theta), d.elements[1], r*Math.sin(theta)])
+        at = eye.add(change)
     }
     g_at = at.elements.slice()
     g_eye = eye.elements.slice()
@@ -228,13 +192,6 @@ const connectVariablesToGLSL = () => {
     u_ModelMatrix = gl.getUniformLocation(gl.program, 'u_ModelMatrix');
     if (!u_ModelMatrix) {
         console.log('Failed to get the storage location of u_ModelMatrix');
-        return;
-    }
-
-    // Get the storage location of u_GlobalRotateMatrix
-    u_GlobalRotateMatrix = gl.getUniformLocation(gl.program, 'u_GlobalRotateMatrix');
-    if (!u_GlobalRotateMatrix) {
-        console.log('Failed to get the storage location of u_GlobalRotateMatrix');
         return;
     }
 

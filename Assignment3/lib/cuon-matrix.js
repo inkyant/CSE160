@@ -730,13 +730,14 @@ class Vector3 {
 
     /**
       * Add other to this vector.
-      * @return this
+      * @return new vector sum
       */
     add(other) {
-        this.elements[0] += other.elements[0]
-        this.elements[1] += other.elements[1]
-        this.elements[2] += other.elements[2]
-        return this;
+        let rtn = new Vector3()
+        rtn.elements[0] = this.elements[0] + other.elements[0]
+        rtn.elements[1] = this.elements[1] + other.elements[1]
+        rtn.elements[2] = this.elements[2] + other.elements[2]
+        return rtn;
     };
 
     /**
@@ -744,32 +745,35 @@ class Vector3 {
       * @return this
       */
     sub(other) {
-        this.elements[0] -= other.elements[0]
-        this.elements[1] -= other.elements[1]
-        this.elements[2] -= other.elements[2]
-        return this;
+        let rtn = new Vector3()
+        rtn.elements[0] = this.elements[0] - other.elements[0]
+        rtn.elements[1] = this.elements[1] - other.elements[1]
+        rtn.elements[2] = this.elements[2] - other.elements[2]
+        return rtn;
     };
 
     /**
       * Divide this vector by a scalar.
-      * @return this
+      * @return new vector quotient
       */
     div(scalar) {
-        this.elements[0] /= scalar
-        this.elements[1] /= scalar
-        this.elements[2] /= scalar
-        return this;
+        let rtn = new Vector3()
+        rtn.elements[0] = this.elements[0] / scalar
+        rtn.elements[1] = this.elements[1] / scalar
+        rtn.elements[2] = this.elements[2] / scalar
+        return rtn;
     };
 
     /**
       * Multiply this vector by a scalar.
-      * @return this
+      * @return new vector product
       */
     mul(scalar) {
-        this.elements[0] *= scalar
-        this.elements[1] *= scalar
-        this.elements[2] *= scalar
-        return this;
+        let rtn = new Vector3()
+        rtn.elements[0] = this.elements[0] * scalar
+        rtn.elements[1] = this.elements[1] * scalar
+        rtn.elements[2] = this.elements[2] * scalar
+        return rtn;
     };
 
     /**
@@ -805,12 +809,11 @@ class Vector3 {
 
     /**
       * Normalize this vector.
-      * @return this
+      * @return new normalized vector
       */
     normalize() {
         let m = this.magnitude()
-        this.div(m)
-        return this;
+        return this.div(m);
     };
 }
 

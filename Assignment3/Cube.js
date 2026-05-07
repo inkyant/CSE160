@@ -92,8 +92,6 @@ class Cube {
             -0.5,  0.5, 0.5,
         ]
 
-        gl.uniformMatrix4fv(u_GlobalRotateMatrix, false, currentViewMatrix.elements);
-        
         let m = new Matrix4()
  
         if (this.parent != null) {
