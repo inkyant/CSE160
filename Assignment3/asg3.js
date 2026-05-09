@@ -106,22 +106,22 @@ function createMap() {
 function addActionsForHtmlUI() {
     document.onkeydown = keydown
     canvas.onmousedown = (ev) => {
-        if (ev.shiftKey) {
+        if (ev.shiftKey || ev.ctrlKey) {
             
             let pos = new Vector3(g_eye)
             let dir = new Vector3(g_at)
             dir = dir.sub(pos)
             dir = dir.normalize()
-
             
             const dist = (a, b) => {
                 return Math.sqrt(Math.pow(a[0] - b[0], 2) + Math.pow(a[1] - b[1], 2) + Math.pow(a[2] - b[2], 2))
             }
             let checked = pos.add(dir)
             
+            let closest = 10000
+            let closestIdx = -1
             while (checked.magnitude() < 1.5*MAP_SIZE) {
-                let closest = 10000
-                let closestIdx = -1
+
                 for (let idx = 0; idx < map.length; idx++) {
                     let d = dist(map[idx].pos, checked.elements)
                     if (d < closest) {
@@ -131,11 +131,21 @@ function addActionsForHtmlUI() {
                 }
                 
                 if (closest < 0.8) {
-                    map.splice(closestIdx, 1)
-                    renderPage()
-                    return
+                    break
                 }
                 checked = checked.add(dir)
+            }
+
+            if (closest < 0.8) {
+                if (ev.shiftKey) {
+                    map.splice(closestIdx, 1)
+                } else if (ev.ctrlKey) {
+                    let newPos = checked.sub(dir)
+                    let newBlock = new Grass()
+                    newBlock.pos = newPos.elements.map(x=>Math.round(x))
+                    map.push(newBlock)
+                }
+                renderPage()
             }
         } else {
             g_isDragging = true
