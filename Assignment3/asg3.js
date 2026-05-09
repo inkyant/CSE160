@@ -107,7 +107,6 @@ function addActionsForHtmlUI() {
     document.onkeydown = keydown
     canvas.onmousedown = (ev) => {
         if (ev.shiftKey) {
-            console.log("click")
             
             let pos = new Vector3(g_eye)
             let dir = new Vector3(g_at)
@@ -132,7 +131,6 @@ function addActionsForHtmlUI() {
                 }
                 
                 if (closest < 0.8) {
-                    console.log("break block")
                     map.splice(closestIdx, 1)
                     renderPage()
                     return
