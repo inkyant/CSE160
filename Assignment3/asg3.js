@@ -25,6 +25,7 @@ varying vec2 vUv;
 void main() {
   vec4 image0 = texture2D(uTexture0, vUv);
   gl_FragColor = u_texColorWeight*image0 + (1.0 - u_texColorWeight)*u_FragColor;
+  if (gl_FragColor.a < 0.1) discard;
 }
 `;
 
@@ -70,9 +71,9 @@ function main() {
     setTimeout(renderPage, 10)
 }
 
+const MAP_SIZE = 40
 function createMap() {
 
-    const MAP_SIZE = 40
 
     const hills = [
         [Math.random()*MAP_SIZE, Math.random()*MAP_SIZE]
@@ -92,17 +93,57 @@ function createMap() {
             } else if (dist(hills[0], [i, j]) < 5) {
                 height += Math.random() > .1
             }
-            map.push([i-MAP_SIZE/2, height, j-MAP_SIZE/2])
+            let g = new Grass()
+            g.pos = [i-MAP_SIZE/2, height, j-MAP_SIZE/2]
+            map.push(g)
         }
     }
+
+    addTree([Math.random()*MAP_SIZE - (MAP_SIZE/2), -1, Math.random()*MAP_SIZE - (MAP_SIZE/2)], 6)
+    addTree([Math.random()*MAP_SIZE - (MAP_SIZE/2), -1, Math.random()*MAP_SIZE - (MAP_SIZE/2)], 5)
 }
 
 function addActionsForHtmlUI() {
     document.onkeydown = keydown
     canvas.onmousedown = (ev) => {
-        g_isDragging = true
-        g_lastMouseX = ev.clientX
-        g_lastMouseY = ev.clientY
+        if (ev.shiftKey) {
+            console.log("click")
+            
+            let pos = new Vector3(g_eye)
+            let dir = new Vector3(g_at)
+            dir = dir.sub(pos)
+            dir = dir.normalize()
+
+            
+            const dist = (a, b) => {
+                return Math.sqrt(Math.pow(a[0] - b[0], 2) + Math.pow(a[1] - b[1], 2) + Math.pow(a[2] - b[2], 2))
+            }
+            let checked = pos.add(dir)
+            
+            while (checked.magnitude() < 1.5*MAP_SIZE) {
+                let closest = 10000
+                let closestIdx = -1
+                for (let idx = 0; idx < map.length; idx++) {
+                    let d = dist(map[idx].pos, checked.elements)
+                    if (d < closest) {
+                        closest = d
+                        closestIdx = idx
+                    }
+                }
+                
+                if (closest < 0.8) {
+                    console.log("break block")
+                    map.splice(closestIdx, 1)
+                    renderPage()
+                    return
+                }
+                checked = checked.add(dir)
+            }
+        } else {
+            g_isDragging = true
+            g_lastMouseX = ev.clientX
+            g_lastMouseY = ev.clientY
+        }
     }
     canvas.onmouseup = () => { g_isDragging = false }
     canvas.onmouseleave = () => { g_isDragging = false }
@@ -156,13 +197,72 @@ function renderPage() {
     sky.color = [120/255, 241/255, 250/255, 1]
     sky.textureBlend = 0.0
     sky.render()
-    let c = new Cube()
-    c.setImage("grass.png")
-    
-    for (const pos of map) {
-        let a = new Cube()
-        a.pos = pos
-        a.render()
+
+    for (const block of map) {
+        block.render()
+    }
+
+    renderCrosshair()
+}
+
+function renderCrosshair() {
+    const I = new Matrix4()
+    gl.uniformMatrix4fv(u_ModelMatrix, false, I.elements)
+    gl.uniformMatrix4fv(u_ViewMatrix, false, I.elements)
+    gl.uniformMatrix4fv(u_ProjectionMatrix, false, I.elements)
+
+    const s = 0.025
+    const t = 0.003
+    const verts = new Float32Array([
+        -s, -t, 0,   s, -t, 0,  -s,  t, 0,
+         s, -t, 0,   s,  t, 0,  -s,  t, 0,
+        -t, -s, 0,   t, -s, 0,  -t,  s, 0,
+         t, -s, 0,   t,  s, 0,  -t,  s, 0,
+    ])
+    const uvs = new Float32Array(24)
+
+    const vBuf = gl.createBuffer()
+    gl.bindBuffer(gl.ARRAY_BUFFER, vBuf)
+    gl.bufferData(gl.ARRAY_BUFFER, verts, gl.DYNAMIC_DRAW)
+    gl.vertexAttribPointer(a_Position, 3, gl.FLOAT, false, 0, 0)
+    gl.enableVertexAttribArray(a_Position)
+
+    const uvBuf = gl.createBuffer()
+    gl.bindBuffer(gl.ARRAY_BUFFER, uvBuf)
+    gl.bufferData(gl.ARRAY_BUFFER, uvs, gl.DYNAMIC_DRAW)
+    gl.vertexAttribPointer(a_uv, 2, gl.FLOAT, false, 0, 0)
+    gl.enableVertexAttribArray(a_uv)
+
+    gl.uniform1f(u_texColorWeight, 0.0)
+    gl.uniform4f(u_FragColor, 1, 1, 1, 1)
+
+    // draw it on top of other stuff
+    gl.disable(gl.DEPTH_TEST)
+    gl.drawArrays(gl.TRIANGLES, 0, 12)
+    gl.enable(gl.DEPTH_TEST)
+}
+
+function addTree(pos, height) {
+    for (let i = 0; i < height; i++) {
+        let w = new Wood()
+        w.pos = pos.slice()
+        w.pos[1] += i
+        map.push(w)
+
+        if (i > 1) {
+            let s = i == height-1 ? 3 : 5
+            for (let a = (-s/2)|0; a <= (s/2)|0; a++) {
+                for (let b = (-s/2)|0; b <= (s/2) |0; b++) {
+                    if (i != height-1 && a == 0 && b == 0) {continue}
+                    let l = new Leaves()
+                    l.pos = pos.slice()
+                    l.pos[0] += a
+                    l.pos[1] = i
+                    l.pos[2] += b
+                    map.push(l)
+                }
+            }
+        }
     }
 }
 
