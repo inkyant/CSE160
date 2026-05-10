@@ -42,7 +42,7 @@ let u_ProjectionMatrix;
 let a_uv;
 let uTexture0;
 
-let g_eye = [0, 0, 2]
+let g_eye = [3, 0, 2]
 let g_at = [0, 0, 1]
 let g_up = [0, 1, 0]
 
@@ -122,7 +122,7 @@ function addActionsForHtmlUI() {
             
             let closest = 10000
             let closestIdx = -1
-            while (checked.magnitude() < 5) {
+            for (let step = 0; step < 10; step++) {
 
                 for (let idx = 0; idx < map.length; idx++) {
                     let d = dist(map[idx].pos, checked.elements)
@@ -305,7 +305,7 @@ function renderCow(bodyX, bodyZ, bodyAngle, thighAngle, calfAngle, tailAngle) {
     let body = new Cube()
     body.scale = [body_width, body_height, body_depth]
     body.jointRotation = [bodyAngle, 0, 1, 0]
-    body.pos = [bodyX-.5, -.25, bodyZ]
+    body.pos = [bodyX, -.25, bodyZ]
     body.render()
 
     const offsets = [0, .5, 1, 2]
@@ -526,6 +526,31 @@ function tick() {
         } else {
             cowPos[0] += dx / dist * cowSpeed
             cowPos[1] += dz / dist * cowSpeed
+        }
+
+        
+        // cow breaks blocks
+        // cow is has 2x-scaled view matrix, so its world pos is doubled
+        const cowWorldX = cowPos[0] * 2
+        const cowWorldZ = cowPos[1] * 2
+
+        let closest = 10000
+        let closestIdx = -1
+
+        for (let idx = 0; idx < map.length; idx++) {
+            if (map[idx].pos[1] == -1) {
+                const dx = cowWorldX - map[idx].pos[0]
+                const dz = cowWorldZ - map[idx].pos[2]
+                const d = Math.sqrt(dx*dx + dz*dz)
+                if (d < closest) {
+                    closest = d
+                    closestIdx = idx
+                }
+            }
+        }
+
+        if (closest < 0.8) {
+            map.splice(closestIdx, 1)
         }
 
         renderPage()
