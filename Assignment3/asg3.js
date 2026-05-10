@@ -53,6 +53,8 @@ const MOUSE_SENSITIVITY = 0.005
 
 let map = []
 
+let g_lightCubes = false
+
 function main() {
     setupWebGL()
     connectVariablesToGLSL()
@@ -99,8 +101,8 @@ function createMap() {
         }
     }
 
-    addTree([Math.random()*MAP_SIZE - (MAP_SIZE/2), -1, Math.random()*MAP_SIZE - (MAP_SIZE/2)], 6)
-    addTree([Math.random()*MAP_SIZE - (MAP_SIZE/2), -1, Math.random()*MAP_SIZE - (MAP_SIZE/2)], 5)
+    addTree([Math.random()*20 - 10, -1, Math.random()*MAP_SIZE - (MAP_SIZE/2)], 6)
+    addTree([Math.random()*20 - 10, -1, Math.random()*MAP_SIZE - (MAP_SIZE/2)], 5)
 }
 
 function addActionsForHtmlUI() {
@@ -120,7 +122,7 @@ function addActionsForHtmlUI() {
             
             let closest = 10000
             let closestIdx = -1
-            while (checked.magnitude() < 1.5*MAP_SIZE) {
+            while (checked.magnitude() < 5) {
 
                 for (let idx = 0; idx < map.length; idx++) {
                     let d = dist(map[idx].pos, checked.elements)
@@ -156,6 +158,8 @@ function addActionsForHtmlUI() {
     canvas.onmouseup = () => { g_isDragging = false }
     canvas.onmouseleave = () => { g_isDragging = false }
     canvas.onmousemove = mousemove
+
+    requestAnimationFrame(tick)
 }
 
 function mousemove(ev) {
@@ -209,6 +213,16 @@ function renderPage() {
     for (const block of map) {
         block.render()
     }
+    
+    // cow needs to be scaled up
+    viewMat = new Matrix4()
+    viewMat.setLookAt(...g_eye, ...g_at, ...g_up) // eye, at, up
+    viewMat.scale(2, 2, 2)
+    gl.uniformMatrix4fv(u_ViewMatrix, false, viewMat.elements)
+
+    g_lightCubes = true
+    renderCow(cowPos[0], cowPos[1], cowAngle, ...animVals)
+    g_lightCubes = false
 
     renderCrosshair()
 }
@@ -272,6 +286,252 @@ function addTree(pos, height) {
             }
         }
     }
+}
+
+function renderCow(bodyX, bodyZ, bodyAngle, thighAngle, calfAngle, tailAngle) {
+
+    const black = [0, 0, 0, 1]
+    const white = [1, 1, 1, 1]
+    const pink = [1, .66, .94, 1]
+    const mag = [184/255, 7/255, 178/255, 1]
+
+    const body_width = .5
+    const body_height = .35
+    const body_depth = .3
+
+    let bodyY = 0
+    let headAngle = 50
+    
+    let body = new Cube()
+    body.scale = [body_width, body_height, body_depth]
+    body.jointRotation = [bodyAngle, 0, 1, 0]
+    body.pos = [bodyX-.5, -.25, bodyZ]
+    body.render()
+
+    const offsets = [0, .5, 1, 2]
+    const legScale = [.1, .15, .1]
+    let legPos = [
+        [-body_width/2 + legScale[0]/2-0.01, -body_height/2 - 0.04, -body_depth/2+legScale[2]/2-0.01]
+    ]
+
+    legPos.push([...legPos[0]], [...legPos[0]], [...legPos[0]])
+    legPos[1][2] *= -1
+    legPos[2][0] *= -1
+    legPos[3][0] *= -1
+    legPos[3][2] *= -1
+
+    for (i = 0; i < 4; i++) {
+        let thigh = new Cube()
+        thigh.scale = legScale
+        thigh.jointRotation = [Math.sin(thighAngle/10 + offsets[i])*30, 0, 0, 1]
+        thigh.jointPos = [0, -legScale[1]/2, 0]
+        thigh.pos = legPos[i]
+        thigh.parent = body
+        thigh.render()
+
+        let calf = new Cube()
+        calf.parent = thigh
+        calf.scale = [.09, .1, .09]
+        calf.jointPos = [0, -calf.scale[1]/2, 0]
+        calf.jointRotation = [calfAngle/1.5 - 15, 0, 0, 1]
+        calf.pos = [0, -legScale[1]/2 - 0.04, 0]
+        calf.render()
+
+        let foot = new Cube()
+        foot.scale = [.11, .07, .11]
+        foot.pos = [0, -calf.scale[1]/2, 0]
+        foot.parent = calf
+        foot.color = black
+    }
+
+    let neck1 = new Cube()
+    neck1.parent = body
+    neck1.color = black
+    neck1.scale = [.06, .25, .25]
+    neck1.pos = [-body_width/2, body_height/2 - neck1.scale[1]/2 +0.01, 0]
+    neck1.render()
+
+    let neck2 = new Cube()
+    neck2.parent = neck1
+    neck2.scale = [.07, .2, .2]
+    neck2.pos = [-0.05, neck1.scale[1]/2 - neck2.scale[1]/2 +0.01, 0]
+    neck2.render()
+
+    let head = new Cube()
+    head.parent = neck2
+    head.scale = [0.3, 0.15, 0.15]
+    head.pos = [-0.15, 0.05, 0]
+    head.jointRotation = [headAngle, 0, 0, 1]
+    head.jointPos = [-0.08, 0, 0]
+    head.render()
+
+    let headSpot = new Cube()
+    headSpot.color = black
+    headSpot.parent = head
+    headSpot.scale = [0.2, 0.15, .06]
+    headSpot.pos = [0, 0.01, -head.scale[2]/2 + headSpot.scale[2]/2 - 0.01]
+    headSpot.render()
+    headSpot.pos[2] *= -1
+    headSpot.render()
+
+    let eye1 = new Cube()
+    eye1.scale = [0.05, 0.05, 0.02]
+    eye1.pos = [0.02, 0.02, -0.1]
+    eye1.parent = head
+    eye1.render()
+
+    let eye2 = new Cube()
+    eye2.scale = [0.05, 0.05, 0.02]
+    eye2.pos = [0.02, 0.02, 0.1]
+    eye2.parent = head
+    eye2.render()
+
+    let udders = new Cube()
+    udders.scale = [.15, .08, .15]
+    udders.pos = [.08, -.2, 0]
+    udders.parent = body
+    udders.color = pink
+    udders.render()
+
+    for (let i = 0; i < 6; i++) {
+        let nip = new Cube()
+        nip.scale = [0.02, 0.04, 0.02]
+        nip.pos = [
+            -udders.scale[0]/2 + 0.03 + (i%3)*(udders.scale[0]/3),
+            -0.06,
+            (i > 2 ? -1 : 1 )*0.03
+        ]
+        nip.color = pink
+        nip.parent = udders
+        nip.render()
+    }
+
+    // left spots
+    let spot1 = new Cube()
+    spot1.color = black
+    spot1.scale = [.25, .15, .02]
+    spot1.pos = [0.06, 0, -body_depth/2]
+    spot1.parent = body
+    spot1.render()
+
+    let spot2 = new Cube()
+    spot2.color = black
+    spot2.scale = [.1, .05, .02]
+    spot2.pos = [0, 0.1, -body_depth/2]
+    spot2.parent = body
+    spot2.render()
+
+    let spot3 = new Cube()
+    spot3.color = black
+    spot3.scale = [.1, .05, .02]
+    spot3.pos = [0.1, -0.1, -body_depth/2]
+    spot3.parent = body
+    spot3.render()
+    
+    let spot4 = new Cube()
+    spot4.color = black
+    spot4.scale = [.05, .12, .02]
+    spot4.pos = [-0.15, -0.05, -body_depth/2]
+    spot4.parent = body
+    spot4.render()
+
+    // top spots
+    let spot5 = new Cube()
+    spot5.color = black
+    spot5.scale = [.15, .02, .12]
+    spot5.pos = [0.02, body_height/2, 0]
+    spot5.parent = body
+    spot5.render()
+
+    // right spots
+    let spot6 = new Cube()
+    spot6.color = black
+    spot6.scale = [.25, .15, .02]
+    spot6.pos = [-0.08, 0, body_depth/2]
+    spot6.parent = body
+    spot6.render()
+
+    let spot7 = new Cube()
+    spot7.color = black
+    spot7.scale = [.07, .15, .02]
+    spot7.pos = [0.16, -0.02, body_depth/2]
+    spot7.parent = body
+    spot7.render()
+    
+    let spot8 = new Cube()
+    spot8.color = black
+    spot8.scale = [.05, .12, .02]
+    spot8.pos = [-0.15, -0.05, body_depth/2]
+    spot8.parent = body
+    spot8.render()
+
+    let spot9 = new Cube()
+    spot9.color = black
+    spot9.scale = [.08, .08, .02]
+    spot9.pos = [0.05, 0.07, body_depth/2]
+    spot9.parent = body
+    spot9.render()
+ 
+    let tail = new Cube()
+    tail.parent = body
+    tail.color = black
+    tail.scale = [0.3, 0.05, 0.05]
+    tail.pos = [body_width/2 + tail.scale[0]/2 - 0.1, body_height/2 -0.05, 0]
+    tail.jointPos = [0.2, 0, 0]
+    tail.jointRotation = [-tailAngle, 0, 0, 1]
+    tail.render()
+}
+
+let fps_display = null
+let prev_time = 0
+let animVals = [0, 0, 10]
+let animMaxMin = [[0, 60], [0, 60], [5, 35]]
+let animDir = [1, 1, 1]
+
+let cowPos = [0, 0]
+let cowAngle = 90
+let cowSegment = 0
+const cowWaypoints = [[0, 0], [0, 4], [4, 4], [6, 2], [4, 0]]
+const cowSpeed = 0.007
+function tick() {
+    if (!fps_display) fps_display = document.getElementById('fps')
+
+    let time = performance.now()
+    if (prev_time !== 0) {
+        fps_display.textContent = 'FPS: ' + Math.round(1000 / (time - prev_time))
+    }
+    let delta = time - prev_time
+    prev_time = time
+
+    if (delta > 10) {
+        for (let i = 0; i < animVals.length; i++) {
+            if (animVals[i] >= animMaxMin[i][1])
+                animDir[i] = -1
+            if (animVals[i] <= animMaxMin[i][0])
+                animDir[i] = 1
+            animVals[i] += animDir[i]
+        }
+
+        const target = cowWaypoints[(cowSegment + 1) % cowWaypoints.length]
+        const dx = target[0] - cowPos[0]
+        const dz = target[1] - cowPos[1]
+        const dist = Math.sqrt(dx*dx + dz*dz)
+        if (dist > 0) {
+            cowAngle = Math.atan2(dz, -dx) * 180 / Math.PI
+        }
+        if (dist <= cowSpeed) {
+            cowPos[0] = target[0]
+            cowPos[1] = target[1]
+            cowSegment = (cowSegment + 1) % cowWaypoints.length
+        } else {
+            cowPos[0] += dx / dist * cowSpeed
+            cowPos[1] += dz / dist * cowSpeed
+        }
+
+        renderPage()
+    }
+
+    requestAnimationFrame(tick)
 }
 
 function keydown(ev) {
