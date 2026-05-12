@@ -18,9 +18,32 @@ class Cube {
         0,0, 1,0, 0,1, 1,1, 1,0, 0,1,
     ])
 
-    // path -> WebGLTexture. Shared across all subclasses so any texture is
-    // uploaded to the GPU exactly once, regardless of how many cubes use it.
+    static _VERTICES = new Float32Array([
+        -0.5, -0.5, -0.5,   0.5, -0.5, -0.5,  -0.5,  0.5, -0.5,
+         0.5,  0.5, -0.5,   0.5, -0.5, -0.5,  -0.5,  0.5, -0.5,
+
+        -0.5, -0.5, -0.5,   0.5, -0.5, -0.5,  -0.5, -0.5,  0.5,
+         0.5, -0.5,  0.5,   0.5, -0.5, -0.5,  -0.5, -0.5,  0.5,
+
+        -0.5, -0.5, -0.5,  -0.5, -0.5,  0.5,  -0.5,  0.5, -0.5,
+        -0.5,  0.5,  0.5,  -0.5, -0.5,  0.5,  -0.5,  0.5, -0.5,
+
+        -0.5,  0.5,  0.5,  -0.5,  0.5, -0.5,   0.5,  0.5, -0.5,
+        -0.5,  0.5,  0.5,   0.5,  0.5,  0.5,   0.5,  0.5, -0.5,
+
+         0.5, -0.5, -0.5,   0.5,  0.5,  0.5,   0.5,  0.5, -0.5,
+         0.5, -0.5, -0.5,   0.5,  0.5,  0.5,   0.5, -0.5,  0.5,
+
+        -0.5, -0.5,  0.5,   0.5, -0.5,  0.5,  -0.5,  0.5,  0.5,
+         0.5,  0.5,  0.5,   0.5, -0.5,  0.5,  -0.5,  0.5,  0.5,
+    ])
+
+    static _FACE_SHADES = [1.0, 0.9, 0.8, 0.75, 0.95, 0.7]
+
+    // path -> WebGLTexture
     static _textureCache = new Map()
+    static _uvBufferCache = new Map()
+    static _vertexBuffer = null
 
     static _loadTexture(path) {
         const tex = gl.createTexture()
@@ -48,8 +71,30 @@ class Cube {
         return Cube._textureCache.get(this.texturePath)
     }
 
+    static _getVertexBuffer() {
+        if (!Cube._vertexBuffer) {
+            Cube._vertexBuffer = gl.createBuffer()
+            gl.bindBuffer(gl.ARRAY_BUFFER, Cube._vertexBuffer)
+            gl.bufferData(gl.ARRAY_BUFFER, Cube._VERTICES, gl.STATIC_DRAW)
+        }
+        return Cube._vertexBuffer
+    }
+
+    static _getUvBuffer() {
+        // `this` is the subclass when called as cls._getUvBuffer().
+        let buf = Cube._uvBufferCache.get(this)
+        if (!buf) {
+            buf = gl.createBuffer()
+            gl.bindBuffer(gl.ARRAY_BUFFER, buf)
+            gl.bufferData(gl.ARRAY_BUFFER, this.uvs, gl.STATIC_DRAW)
+            Cube._uvBufferCache.set(this, buf)
+        }
+        return buf
+    }
+
     constructor() {
-        this.matrix = new Matrix4()
+        this.matrix = new Matrix4()       // unscaled world matrix, exposed to children
+        this._renderMat = new Matrix4()   // scratch matrix with scale baked in
         this.scale = [1, 1, 1]
         this.color = [1, 1, 1, 1]
         this.jointRotation = [0, 1, 0, 0]
@@ -64,99 +109,36 @@ class Cube {
     }
 
     render() {
-        let vertices = [
-            -0.5, -0.5, -0.5,
-             0.5, -0.5, -0.5,
-            -0.5,  0.5, -0.5,
-
-             0.5,  0.5, -0.5,
-             0.5, -0.5, -0.5,
-            -0.5,  0.5, -0.5,
-
-
-            -0.5, -0.5, -0.5,
-             0.5, -0.5, -0.5,
-            -0.5, -0.5,  0.5,
-
-             0.5, -0.5,  0.5,
-             0.5, -0.5, -0.5,
-            -0.5, -0.5,  0.5,
-
-
-            -0.5, -0.5, -0.5,
-            -0.5, -0.5,  0.5,
-            -0.5,  0.5, -0.5,
-
-            -0.5,  0.5,  0.5,
-            -0.5, -0.5,  0.5,
-            -0.5,  0.5, -0.5,
-
-
-            -0.5,  0.5,  0.5,
-            -0.5,  0.5, -0.5,
-             0.5,  0.5, -0.5,
-
-            -0.5,  0.5,  0.5,
-             0.5,  0.5,  0.5,
-             0.5,  0.5, -0.5,
-
-
-             0.5, -0.5, -0.5,
-             0.5,  0.5,  0.5,
-             0.5,  0.5, -0.5,
-
-             0.5, -0.5, -0.5,
-             0.5,  0.5,  0.5,
-             0.5, -0.5,  0.5,
-
-
-            -0.5, -0.5, 0.5,
-             0.5, -0.5, 0.5,
-            -0.5,  0.5, 0.5,
-
-             0.5,  0.5, 0.5,
-             0.5, -0.5, 0.5,
-            -0.5,  0.5, 0.5,
-        ]
-
-        let m = new Matrix4()
-
+        const m = this.matrix
         if (this.parent != null) {
-            m.concat(this.parent.matrix)
+            m.set(this.parent.matrix)
+        } else {
+            m.setIdentity()
         }
 
-        m.translate(this.pos[0] - this.jointPos[0], this.pos[1] - this.jointPos[1], this.pos[2] - this.jointPos[2])
-        m.rotate(...this.jointRotation)
-        m.translate(...this.jointPos)
+        const jp = this.jointPos
+        const p = this.pos
+        m.translate(p[0] - jp[0], p[1] - jp[1], p[2] - jp[2])
+        const jr = this.jointRotation
+        m.rotate(jr[0], jr[1], jr[2], jr[3])
+        m.translate(jp[0], jp[1], jp[2])
 
-        this.matrix = new Matrix4(m)
+        // m (== this.matrix) is the unscaled matrix children will read from.
+        // Copy to scratch and apply scale for this draw.
+        const rm = this._renderMat.set(m)
+        const sc = this.scale
+        rm.scale(sc[0], sc[1], sc[2])
 
-        m.scale(this.scale[0], this.scale[1], this.scale[2])
+        gl.uniformMatrix4fv(u_ModelMatrix, false, rm.elements)
 
-        gl.uniformMatrix4fv(u_ModelMatrix, false, m.elements);
-
-        let vertexBuffer = gl.createBuffer();
-        if (!vertexBuffer) {
-            console.log('Failed to create the vertex buffer object');
-            return -1;
-        }
-        gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
-        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.DYNAMIC_DRAW);
-
-        gl.vertexAttribPointer(a_Position, 3, gl.FLOAT, false, 0, 0);
-        gl.enableVertexAttribArray(a_Position);
+        gl.bindBuffer(gl.ARRAY_BUFFER, Cube._getVertexBuffer())
+        gl.vertexAttribPointer(a_Position, 3, gl.FLOAT, false, 0, 0)
+        gl.enableVertexAttribArray(a_Position)
 
         const cls = this.constructor
-
-        let uvBuffer = gl.createBuffer();
-        if (!uvBuffer) {
-            console.log("Failed to create the uv buffer object");
-            return -1;
-        }
-        gl.bindBuffer(gl.ARRAY_BUFFER, uvBuffer);
-        gl.bufferData(gl.ARRAY_BUFFER, cls.uvs, gl.DYNAMIC_DRAW);
-        gl.vertexAttribPointer(a_uv, 2, gl.FLOAT, false, 0, 0);
-        gl.enableVertexAttribArray(a_uv);
+        gl.bindBuffer(gl.ARRAY_BUFFER, cls._getUvBuffer())
+        gl.vertexAttribPointer(a_uv, 2, gl.FLOAT, false, 0, 0)
+        gl.enableVertexAttribArray(a_uv)
 
         const tex = cls.getTexture()
         if (tex) {
@@ -167,31 +149,18 @@ class Cube {
 
         gl.uniform1f(u_texColorWeight, this.textureBlend)
 
-        let r = this.color[0];
-        let g = this.color[1];
-        let b = this.color[2];
-        let a = this.color[3];
+        const c = this.color
+        const r = c[0], g = c[1], b = c[2], a = c[3]
         if (!g_lightCubes) {
-            gl.uniform4f(u_FragColor, r, g, b, a);
-            gl.drawArrays(gl.TRIANGLES, 0, 36);
+            gl.uniform4f(u_FragColor, r, g, b, a)
+            gl.drawArrays(gl.TRIANGLES, 0, 36)
         } else {
-            gl.uniform4f(u_FragColor, r, g, b, a);
-            gl.drawArrays(gl.TRIANGLES, 0, 6);
-
-            gl.uniform4f(u_FragColor, 0.9*r, 0.9*g, 0.9*b, a);
-            gl.drawArrays(gl.TRIANGLES, 6, 6);
-
-            gl.uniform4f(u_FragColor, 0.8*r, 0.8*g, 0.8*b, a);
-            gl.drawArrays(gl.TRIANGLES, 12, 6);
-
-            gl.uniform4f(u_FragColor, 0.75*r, 0.75*g, 0.75*b, a);
-            gl.drawArrays(gl.TRIANGLES, 18, 6);
-            
-            gl.uniform4f(u_FragColor, 0.95*r, 0.95*g, 0.95*b, a);
-            gl.drawArrays(gl.TRIANGLES, 24, 6);
-            
-            gl.uniform4f(u_FragColor, 0.7*r, 0.7*g, 0.7*b, a);
-            gl.drawArrays(gl.TRIANGLES, 30, 6);
+            const shades = Cube._FACE_SHADES
+            for (let i = 0; i < 6; i++) {
+                const s = shades[i]
+                gl.uniform4f(u_FragColor, s*r, s*g, s*b, a)
+                gl.drawArrays(gl.TRIANGLES, i*6, 6)
+            }
         }
     }
 
