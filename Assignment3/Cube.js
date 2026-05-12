@@ -252,3 +252,42 @@ class Leaves extends Cube {
         0,0, 1,0, 0,1, 1,1, 1,0, 0,1,
     ])
 }
+
+class Stone extends Cube {
+    static texturePath = 'stone.jpg'
+    
+    static uvs = new Float32Array([
+        // FRONT
+        0,0, 1,0, 0,1, 1,1, 1,0, 0,1,
+        // BOTTOM
+        0,0, 1,0, 0,1, 1,1, 1,0, 0,1,
+        // LEFT
+        0,0, 1,0, 0,1, 1,1, 1,0, 0,1,
+        // TOP
+        0,1, 1,1,1,0,     0,1, 0,0, 1,0,
+        // RIGHT
+        1,0, 0,1, 1,1,    1,0, 0,1,  0,0,  
+        // BACK
+        0,0, 1,0, 0,1, 1,1, 1,0, 0,1,
+    ])
+}
+
+class Diamond extends Cube {
+    static texturePath = 'diamond.jpg'
+    
+    static uvs = new Float32Array([
+        // FRONT
+        0,0, 1,0, 0,1, 1,1, 1,0, 0,1,
+        // BOTTOM
+        0,0, 1,0, 0,1, 1,1, 1,0, 0,1,
+        // LEFT
+        0,0, 1,0, 0,1, 1,1, 1,0, 0,1,
+        // TOP
+        0,1, 1,1,1,0,     0,1, 0,0, 1,0,
+        // RIGHT
+        1,0, 0,1, 1,1,    1,0, 0,1,  0,0,  
+        // BACK
+        0,0, 1,0, 0,1, 1,1, 1,0, 0,1,
+    ])
+}
+
