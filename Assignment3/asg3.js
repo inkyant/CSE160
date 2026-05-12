@@ -591,10 +591,13 @@ function keydown(ev) {
         let change = new Vector3([r*Math.cos(theta), d.elements[1], r*Math.sin(theta)])
         at = eye.add(change)
     }
-    g_at = at.elements.slice()
-    g_eye = eye.elements.slice()
-    g_up = up.elements.slice()
-    renderPage()
+    if (Math.max(...eye.elements) < 20 && Math.min(...eye.elements) > -20) {
+        g_at = at.elements.slice()
+        g_eye = eye.elements.slice()
+        g_up = up.elements.slice()
+
+        renderPage()
+    }
 }
 
 const connectVariablesToGLSL = () => {
