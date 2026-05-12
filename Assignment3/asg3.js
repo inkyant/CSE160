@@ -86,7 +86,7 @@ function createMap() {
     const hillZ = Math.random() * MAP_SIZE
     const HALF = MAP_SIZE / 2
 
-    const SUBSURFACE_DEPTH = 2
+    const SUBSURFACE_DEPTH = 5
     const DIAMOND_CHANCE = 0.04
 
     for (let i = 0; i < MAP_SIZE; i++) {
@@ -167,7 +167,6 @@ function addActionsForHtmlUI() {
                     newBlock.pos = newPos.elements.map(x => Math.round(x))
                     map.push(newBlock)
                 }
-                renderPage()
             }
         } else {
             g_isDragging = true
@@ -208,8 +207,6 @@ function mousemove(ev) {
     g_at[0] = g_eye[0] + r * cp * Math.cos(yaw)
     g_at[1] = g_eye[1] + r * Math.sin(pitch)
     g_at[2] = g_eye[2] + r * cp * Math.sin(yaw)
-
-    renderPage()
 }
 
 function renderPage() {
@@ -592,8 +589,6 @@ function keydown(ev) {
         g_at = at.elements.slice()
         g_eye = eye.elements.slice()
         g_up = up.elements.slice()
-
-        renderPage()
     }
 }
 
