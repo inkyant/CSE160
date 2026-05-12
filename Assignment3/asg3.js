@@ -159,6 +159,7 @@ function addActionsForHtmlUI() {
                     if (map[closestIdx] instanceof Diamond) {
                         diamond_count++
                         diamond_display.textContent = diamond_count + " Diamonds"
+                        if (diamond_count === 1) playConfetti()
                     }
                     map.splice(closestIdx, 1)
                 } else {
@@ -653,6 +654,58 @@ const connectVariablesToGLSL = () => {
         console.warn("could not find uTexture0 location")
     }
 
+}
+
+function playConfetti() {
+    if (!document.getElementById('confetti-style')) {
+        const s = document.createElement('style')
+        s.id = 'confetti-style'
+        s.textContent = `
+            @keyframes confetti-fall {
+                to { transform: translateY(110vh) rotate(720deg); }
+            }
+            .confetti {
+                position: fixed; top: -20px;
+                width: 10px; height: 16px;
+                pointer-events: none; z-index: 9999;
+                animation: confetti-fall linear forwards;
+            }
+            #confetti-banner {
+                position: fixed; top: 30%; left: 50%;
+                transform: translate(-50%, -50%);
+                font: bold 48px sans-serif; color: #4dc4ff;
+                text-shadow: 2px 2px 0 #000, -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000;
+                pointer-events: none; z-index: 9999;
+                animation: confetti-fall 2s ease-out forwards;
+                animation-name: banner-pop;
+            }
+            @keyframes banner-pop {
+                0%   { transform: translate(-50%, -50%) scale(0.2); opacity: 0; }
+                20%  { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
+                40%  { transform: translate(-50%, -50%) scale(1.0); opacity: 1; }
+                100% { transform: translate(-50%, -50%) scale(1.0); opacity: 0; }
+            }
+        `
+        document.head.appendChild(s)
+    }
+
+    const banner = document.createElement('div')
+    banner.id = 'confetti-banner'
+    banner.textContent = 'DIAMONDS!'
+    document.body.appendChild(banner)
+    setTimeout(() => banner.remove(), 2000)
+
+    const colors = ['#ff4d4d', '#ffd84d', '#4dff7a', '#4dc4ff', '#c44dff', '#ff4dd2']
+    for (let i = 0; i < 100; i++) {
+        const el = document.createElement('div')
+        el.className = 'confetti'
+        el.style.left = Math.random() * 100 + 'vw'
+        el.style.background = colors[i % colors.length]
+        el.style.animationDelay = (Math.random() * 0.5) + 's'
+        el.style.animationDuration = (2 + Math.random() * 2) + 's'
+        document.body.appendChild(el)
+        setTimeout(() => el.remove(), 5000)
+    }
 }
 
 const setupWebGL = () => {
