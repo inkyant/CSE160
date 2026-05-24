@@ -249,7 +249,7 @@ function renderPage() {
 
     if (!g_sky) {
         g_sky = new Cube()
-        g_sky.scale = [100, 100, 100]
+        g_sky.scale = [-100, -100, -100]
         g_sky.color = [120/255, 241/255, 250/255, 1]
         g_sky.textureBlend = 0.0
     }
