@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<!-- Anthony Furman apfurman. -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Assignment 3</title>
+  </head>
+
+  <body onload="main()">
+    <canvas id="webgl" width="400" height="400"></canvas>
+    <div>
+      W, A, S, D to move.
+      Q and E (or mouse) to rotate.<br/>
+      Shift Click to break and Ctrl Click to place.
+      <br/>
+      Cow will eat blocks in front of it.
+    </div>
+
+    <div style="font-size: large;">
+      Try to mine Diamonds!
+      <div id="diamond-count">0 Diamonds</div> 
+    </div>
+    <div id="fps">FPS: --</div>
+    <button id="normals-btn" data-showing="false" onclick="toggleNormals()">Show Normals</button>
+    
+    <script src="lib/webgl-utils.js"></script>
+    <script src="lib/webgl-debug.js"></script>
+    <script src="lib/cuon-utils.js"></script>
+    <script src="lib/cuon-matrix.js"></script>
+    <script src="asg4.js"></script>
+    <script src="Cube.js"></script>
+    <script src="Sphere.js"></script>
+  </body>
+</html>
