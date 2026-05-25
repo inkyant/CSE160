@@ -9,6 +9,7 @@
   <body onload="main()">
     <canvas id="webgl" width="400" height="400"></canvas>
     <div>
+      Same as Assignment 3, now with lighting and other objects. </br>
       W, A, S, D to move.
       Q and E (or mouse) to rotate.<br/>
       Shift Click to break and Ctrl Click to place.
@@ -16,22 +17,30 @@
       Cow will eat blocks in front of it.
     </div>
 
-    <div style="font-size: large;">
+    <div>
       Try to mine Diamonds!
       <div id="diamond-count">0 Diamonds</div> 
     </div>
     <div id="fps">FPS: --</div>
     <button id="normals-btn">Show Normals</button>
-    <button id="animate-light-btn">Toggle Animate Light</button>
     <button id="light-on-btn">Toggle Lighting</button>
-    
+
     <p>
-      Light X <input type="range" min="-500" max="500" class="slider" id="lightSlideX"> <br/>
-      Light Y <input type="range" value="200" min="-500" max="500" class="slider" id="lightSlideY"> <br/>
-      Light Z <input type="range" min="-500" max="500" class="slider" id="lightSlideZ"> <br/>
+      <b>Point Light</b>
+      <button id="point-light-on-btn">Disable Point Light</button>
+      <button id="animate-light-btn">Toggle Animate</button><br/>
+      X <input type="range" min="-500" max="500" class="slider" id="pointLightSlideX"> <br/>
+      Y <input type="range" value="200" min="-500" max="500" class="slider" id="pointLightSlideY"> <br/>
+      Z <input type="range" min="-500" max="500" class="slider" id="pointLightSlideZ"> <br/>
     </p>
 
-    <button id="light-type-btn">Switch to Spotlight</button>
+    <p>
+      <b>Spot Light</b>
+      <button id="spot-light-on-btn">Enable Spot Light</button><br/>
+      X <input type="range" value="200" min="-500" max="500" class="slider" id="spotLightSlideX"> <br/>
+      Y <input type="range" value="200" min="-500" max="500" class="slider" id="spotLightSlideY"> <br/>
+      Z <input type="range" min="-500" max="500" class="slider" id="spotLightSlideZ"> <br/>
+    </p>
 
     <script src="lib/webgl-utils.js"></script>
     <script src="lib/webgl-debug.js"></script>
@@ -40,5 +49,6 @@
     <script src="asg4.js"></script>
     <script src="Cube.js"></script>
     <script src="Sphere.js"></script>
+    <script src="Model.js"></script>
   </body>
 </html>

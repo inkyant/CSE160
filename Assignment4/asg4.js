@@ -36,37 +36,49 @@ varying vec3 v_Normal;
 uniform int u_ShowNormals;
 uniform bool u_lighting;
 uniform vec3 u_cameraPos;
-uniform vec3 u_lightPos;
 varying vec4 v_VertPos;
-uniform bool u_spotlight;
+uniform bool u_pointLightOn;
+uniform vec3 u_pointLightPos;
+uniform bool u_spotLightOn;
+uniform vec3 u_spotLightPos;
 void main() {
     if (u_ShowNormals == 1) {
         gl_FragColor = vec4((v_Normal + 1.0)/2.0, 1.0);
-    } else {  
+    } else {
         vec4 image0 = texture2D(uTexture0, vUv);
         gl_FragColor = u_texColorWeight*image0 + (1.0 - u_texColorWeight)*u_FragColor;
-        // if (gl_FragColor.a < 0.1) discard;
     }
     if (u_lighting) {
-        vec3 lightVec = u_lightPos - vec3(v_VertPos);
-        float r = length(lightVec);
-        // if (r<2.0) {
-        //     gl_FragColor = vec4(1.0,0.0,0.0,1.0);
-        // }
-
-        // gl_FragColor = vec4(vec3(gl_FragColor)/(r*r), 1);
-
-        vec3 L = normalize(lightVec);
+        vec3 baseColor = vec3(gl_FragColor);
         vec3 N = normalize(v_Normal);
-        float nDotL = max(dot(N, L), 0.0);
+        vec3 E = normalize(u_cameraPos - vec3(v_VertPos));
+        vec3 result = baseColor * 0.2;
 
-        vec3 R = reflect(-L, N);
-        vec3 E = normalize(u_cameraPos-vec3(v_VertPos));
-        float specular = pow(max(dot(E,R), 0.0), 10.0) * 0.5;
+        if (u_pointLightOn) {
+            vec3 L = normalize(u_pointLightPos - vec3(v_VertPos));
+            float nDotL = max(dot(N, L), 0.0);
+            vec3 R = reflect(-L, N);
+            float specular = pow(max(dot(E, R), 0.0), 10.0) * 0.5;
+            result += baseColor * nDotL * 0.7 + vec3(specular);
+        }
 
-        vec3 diffuse = vec3(gl_FragColor) * nDotL * 0.7;
-        vec3 ambient = vec3(gl_FragColor) * 0.4;
-        gl_FragColor = vec4(specular+diffuse+ambient, 1.0);
+        if (u_spotLightOn) {
+            vec3 L = normalize(u_spotLightPos - vec3(v_VertPos));
+            float nDotL = max(dot(N, L), 0.0);
+            vec3 R = reflect(-L, N);
+            float specular = pow(max(dot(E, R), 0.0), 10.0) * 0.5;
+            vec3 D = normalize(vec3(0.0, 1.0, 0.0));
+            float spotCosine = dot(D, L);
+            float spotFactor;
+            if (spotCosine >= 0.86) {
+                spotFactor = pow(spotCosine, 10.0);
+            } else {
+                spotFactor = 0.0;
+            }
+            result += (baseColor * nDotL * 0.7 + vec3(specular)) * spotFactor;
+        }
+
+        gl_FragColor = vec4(result, 1.0);
     }
 }
 `;
@@ -85,11 +97,13 @@ let a_uv;
 let a_normal;
 let u_ShowNormals;
 let uTexture0;
-let u_lightPos;
 let u_cameraPos;
 let u_lighting;
 let u_NormalMatrix;
-let u_spotlight;
+let u_pointLightOn;
+let u_pointLightPos;
+let u_spotLightOn;
+let u_spotLightPos;
 
 let g_eye = [10, 1, 10]
 let g_at = [0, 0, 1]
@@ -110,7 +124,8 @@ let g_sky = null
 let g_crosshair = null
 let g_cow = null
 
-let g_lightPos = [0, 2, 0]
+let g_pointLightPos = [0, 2, 0]
+let g_spotLightPos = [2, 2, 0]
 
 function main() {
     setupWebGL()
@@ -182,12 +197,20 @@ function createMap() {
     s2_matrix.translate(3, 0, 0)
     s.matrix = s2_matrix
     map.push(s2)
+
+    let teapot = new Model("teapot.obj")
+    // teapot.matrix.scale(1, 2, 2)
+    teapot.color = [1, 0, 0, 1]
+    teapot.matrix.translate(0, 0, 5)
+    map.push(teapot)
 }
 
-let lightSliders = []
+let pointLightSliders = []
+let spotLightSliders = []
 let g_animateLight = false
 let g_lightOn = true
-let g_isSpotlight = false
+let g_pointLightOn = true
+let g_spotLightOn = false
 
 function addActionsForHtmlUI() {
     if (!diamond_display) diamond_display = document.getElementById('diamond-count')
@@ -196,22 +219,39 @@ function addActionsForHtmlUI() {
     document.getElementById('animate-light-btn').onclick = () => {g_animateLight = !g_animateLight}
     document.getElementById('light-on-btn').onclick = () => {g_lightOn = !g_lightOn}
 
-    document.getElementById('light-type-btn').onclick = () => {
-        g_isSpotlight = !g_isSpotlight
-        document.getElementById('light-type-btn').textContent = g_isSpotlight ? "Switch to Point Light" : "Switch to Spotlight"
+    document.getElementById('point-light-on-btn').onclick = () => {
+        g_pointLightOn = !g_pointLightOn
+        document.getElementById('point-light-on-btn').textContent = g_pointLightOn ? 'Disable Point Light' : 'Enable Point Light'
+    }
+    document.getElementById('spot-light-on-btn').onclick = () => {
+        g_spotLightOn = !g_spotLightOn
+        document.getElementById('spot-light-on-btn').textContent = g_spotLightOn ? 'Disable Spot Light' : 'Enable Spot Light'
     }
 
-    const lightSlide = (ev, id) => {
+    const pointLightSlide = (ev, id) => {
         if (ev.buttons == 1) {
-            g_lightPos[id] = lightSliders[id].value/100;
+            g_pointLightPos[id] = pointLightSliders[id].value/100
             renderPage()
         }
     }
-    lightSliders.push(document.getElementById('lightSlideX'))
-    lightSliders.push(document.getElementById('lightSlideY'))
-    lightSliders.push(document.getElementById('lightSlideZ'))
+    pointLightSliders.push(document.getElementById('pointLightSlideX'))
+    pointLightSliders.push(document.getElementById('pointLightSlideY'))
+    pointLightSliders.push(document.getElementById('pointLightSlideZ'))
     for (let i = 0; i < 3; i++) {
-        lightSliders[i].addEventListener('mousemove', ev => lightSlide(ev, i))
+        pointLightSliders[i].addEventListener('mousemove', ev => pointLightSlide(ev, i))
+    }
+
+    const spotLightSlide = (ev, id) => {
+        if (ev.buttons == 1) {
+            g_spotLightPos[id] = spotLightSliders[id].value/100
+            renderPage()
+        }
+    }
+    spotLightSliders.push(document.getElementById('spotLightSlideX'))
+    spotLightSliders.push(document.getElementById('spotLightSlideY'))
+    spotLightSliders.push(document.getElementById('spotLightSlideZ'))
+    for (let i = 0; i < 3; i++) {
+        spotLightSliders[i].addEventListener('mousemove', ev => spotLightSlide(ev, i))
     }
 
     document.onkeydown = keydown
@@ -309,10 +349,12 @@ function renderPage() {
     g_projMat.setPerspective(60, canvas.width/canvas.height, .1, 100)
     gl.uniformMatrix4fv(u_ProjectionMatrix, false, g_projMat.elements)
 
-    gl.uniform3f(u_lightPos, g_lightPos[0], g_lightPos[1], g_lightPos[2])
     gl.uniform3f(u_cameraPos, g_eye[0], g_eye[1], g_eye[2])
-    gl.uniform1i(u_lighting, g_lightOn);
-    gl.uniform1i(u_spotlight, g_isSpotlight);
+    gl.uniform1i(u_lighting, g_lightOn)
+    gl.uniform1i(u_pointLightOn, g_pointLightOn)
+    gl.uniform3f(u_pointLightPos, g_pointLightPos[0], g_pointLightPos[1], g_pointLightPos[2])
+    gl.uniform1i(u_spotLightOn, g_spotLightOn)
+    gl.uniform3f(u_spotLightPos, g_spotLightPos[0], g_spotLightPos[1], g_spotLightPos[2])
 
 
     if (!g_sky) {
@@ -327,20 +369,34 @@ function renderPage() {
         map[i].render()
     }
 
+
+
     renderCow(cowPos[0], cowPos[1], cowAngle, animVals[0], animVals[1], animVals[2])
 
-    let light = new Sphere()
-    light.scale = [-0.2, -0.2, -0.2]
-    light.textureBlend = 0.0
     if (g_animateLight) {
-        g_lightPos[0] = Math.cos(performance.now()/1000)*5
-        lightSliders[0].value = g_lightPos[0]*100
+        g_pointLightPos[0] = Math.cos(performance.now()/1000)*5
+        pointLightSliders[0].value = g_pointLightPos[0]*100
     }
-    light.pos[0] = g_lightPos[0]
-    light.pos[1] = g_lightPos[1]
-    light.pos[2] = g_lightPos[2]
-    light.color = [2, 2, 0, 1]
-    light.render()
+    if (g_pointLightOn) {
+        let pointLight = new Sphere()
+        pointLight.scale = [-0.2, -0.2, -0.2]
+        pointLight.textureBlend = 0.0
+        pointLight.pos[0] = g_pointLightPos[0]
+        pointLight.pos[1] = g_pointLightPos[1]
+        pointLight.pos[2] = g_pointLightPos[2]
+        pointLight.color = [2, 2, 0, 1]
+        pointLight.render()
+    }
+    if (g_spotLightOn) {
+        let spotLight = new Sphere()
+        spotLight.scale = [-0.2, -0.2, -0.2]
+        spotLight.textureBlend = 0.0
+        spotLight.pos[0] = g_spotLightPos[0]
+        spotLight.pos[1] = g_spotLightPos[1]
+        spotLight.pos[2] = g_spotLightPos[2]
+        spotLight.color = [2, 0, 2, 1]
+        spotLight.render()
+    }
 
     renderCrosshair()
 }
@@ -642,7 +698,7 @@ function tick() {
         let closestD2 = BREAK_R2
         for (let idx = 0; idx < map.length; idx++) {
             const bp = map[idx].pos
-            if (bp[1] !== -1) continue
+            if (bp == null || bp[1] !== -1) continue
             const ex = cowPos[0] - bp[0]
             const ez = cowPos[1] - bp[2]
             const d2 = ex*ex + ez*ez
@@ -762,11 +818,13 @@ const connectVariablesToGLSL = () => {
     }
 
     u_ShowNormals = gl.getUniformLocation(gl.program, 'u_ShowNormals');
-    u_lightPos = gl.getUniformLocation(gl.program, 'u_lightPos');
     u_cameraPos = gl.getUniformLocation(gl.program, 'u_cameraPos');
     u_lighting = gl.getUniformLocation(gl.program, 'u_lighting');
-    u_spotlight = gl.getUniformLocation(gl.program, 'u_spotlight');
     u_NormalMatrix = gl.getUniformLocation(gl.program, 'u_NormalMatrix')
+    u_pointLightOn = gl.getUniformLocation(gl.program, 'u_pointLightOn')
+    u_pointLightPos = gl.getUniformLocation(gl.program, 'u_pointLightPos')
+    u_spotLightOn = gl.getUniformLocation(gl.program, 'u_spotLightOn')
+    u_spotLightPos = gl.getUniformLocation(gl.program, 'u_spotLightPos')
 }
 
 function toggleNormals() {
