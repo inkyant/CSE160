@@ -10,7 +10,7 @@ class Model {
         this.getFileContent().then(() => {
             this.vertexBuffer = gl.createBuffer()
             this.normalBuffer = gl.createBuffer()
-
+            this.uvBuffer = gl.createBuffer()
         })
     }
 
@@ -58,6 +58,7 @@ class Model {
         this.modelData = {
             vertices: new Float32Array(unpackedVerts),
             normals: new Float32Array(unpackedNormals),
+            uvs: new Float32Array(unpackedVerts.length / 3 * 2),
         }
         this.isFullyLoaded = true
     }
@@ -75,6 +76,11 @@ class Model {
         gl.bufferData(gl.ARRAY_BUFFER, this.modelData.normals, gl.DYNAMIC_DRAW);
         gl.vertexAttribPointer(a_normal, 3, gl.FLOAT, false, 0, 0);
         gl.enableVertexAttribArray(a_normal);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.uvBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, this.modelData.uvs, gl.DYNAMIC_DRAW);
+        gl.vertexAttribPointer(a_uv, 2, gl.FLOAT, false, 0, 0);
+        gl.enableVertexAttribArray(a_uv);
 
         // set uniforms
         gl.uniform1f(u_texColorWeight, 0.0)
