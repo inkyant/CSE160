@@ -38,8 +38,6 @@ class Cube {
          0.5,  0.5,  0.5,   0.5, -0.5,  0.5,  -0.5,  0.5,  0.5,
     ])
 
-    static _FACE_SHADES = [1.0, 0.9, 0.8, 0.75, 0.95, 0.7]
-
     static _NORMALS = new Float32Array([
         // FRONT (z = -0.5)
          0, 0,-1,  0, 0,-1,  0, 0,-1,  0, 0,-1,  0, 0,-1,  0, 0,-1,
@@ -127,6 +125,7 @@ class Cube {
         this.pos = [0, 0, 0]
         this.parent = null
         this.textureBlend = this.constructor.texturePath ? 1.0 : 0.0
+        this.normalMatrix = new Matrix4()
 
         // Kick off the load on first instance of this class. Subsequent
         // instances hit the cache.
@@ -154,7 +153,10 @@ class Cube {
         const sc = this.scale
         rm.scale(sc[0], sc[1], sc[2])
 
+        this.normalMatrix.setInverseOf(this.matrix).transpose()
+
         gl.uniformMatrix4fv(u_ModelMatrix, false, rm.elements)
+        gl.uniformMatrix4fv(u_NormalMatrix, false, this.normalMatrix.elements)
 
         gl.bindBuffer(gl.ARRAY_BUFFER, Cube._getVertexBuffer())
         gl.vertexAttribPointer(a_Position, 3, gl.FLOAT, false, 0, 0)
@@ -180,17 +182,8 @@ class Cube {
 
         const c = this.color
         const r = c[0], g = c[1], b = c[2], a = c[3]
-        if (!g_lightCubes) {
-            gl.uniform4f(u_FragColor, r, g, b, a)
-            gl.drawArrays(gl.TRIANGLES, 0, 36)
-        } else {
-            const shades = Cube._FACE_SHADES
-            for (let i = 0; i < 6; i++) {
-                const s = shades[i]
-                gl.uniform4f(u_FragColor, s*r, s*g, s*b, a)
-                gl.drawArrays(gl.TRIANGLES, i*6, 6)
-            }
-        }
+        gl.uniform4f(u_FragColor, r, g, b, a)
+        gl.drawArrays(gl.TRIANGLES, 0, 36)
     }
 
 }

@@ -21,8 +21,18 @@
       <div id="diamond-count">0 Diamonds</div> 
     </div>
     <div id="fps">FPS: --</div>
-    <button id="normals-btn" data-showing="false" onclick="toggleNormals()">Show Normals</button>
+    <button id="normals-btn">Show Normals</button>
+    <button id="animate-light-btn">Toggle Animate Light</button>
+    <button id="light-on-btn">Toggle Lighting</button>
     
+    <p>
+      Light X <input type="range" min="-500" max="500" class="slider" id="lightSlideX"> <br/>
+      Light Y <input type="range" value="200" min="-500" max="500" class="slider" id="lightSlideY"> <br/>
+      Light Z <input type="range" min="-500" max="500" class="slider" id="lightSlideZ"> <br/>
+    </p>
+
+    <button id="light-type-btn">Switch to Spotlight</button>
+
     <script src="lib/webgl-utils.js"></script>
     <script src="lib/webgl-debug.js"></script>
     <script src="lib/cuon-utils.js"></script>

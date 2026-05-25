@@ -11,11 +11,17 @@ varying vec2 vUv;
 attribute vec3 a_Normal;
 varying vec3 v_Normal;
 
+varying vec4 v_VertPos;
+
+uniform mat4 u_NormalMatrix;
+
 void main() {
   gl_Position = u_ProjectionMatrix * u_ViewMatrix * u_ModelMatrix * a_Position;
 
+  v_VertPos = u_ModelMatrix * a_Position;
+
   vUv = a_uv;
-  v_Normal = a_Normal;
+  v_Normal = normalize(vec3(u_NormalMatrix * vec4(a_Normal, 1.0)));
 }
 `;
 
@@ -28,14 +34,40 @@ uniform sampler2D uTexture0;
 varying vec2 vUv;
 varying vec3 v_Normal;
 uniform int u_ShowNormals;
+uniform bool u_lighting;
+uniform vec3 u_cameraPos;
+uniform vec3 u_lightPos;
+varying vec4 v_VertPos;
+uniform bool u_spotlight;
 void main() {
-  if (u_ShowNormals == 1) {
-    gl_FragColor = vec4((v_Normal + 1.0)/2.0, 1.0);
-  } else { 
-    vec4 image0 = texture2D(uTexture0, vUv);
-    gl_FragColor = u_texColorWeight*image0 + (1.0 - u_texColorWeight)*u_FragColor;
-    if (gl_FragColor.a < 0.1) discard;
-  }
+    if (u_ShowNormals == 1) {
+        gl_FragColor = vec4((v_Normal + 1.0)/2.0, 1.0);
+    } else {  
+        vec4 image0 = texture2D(uTexture0, vUv);
+        gl_FragColor = u_texColorWeight*image0 + (1.0 - u_texColorWeight)*u_FragColor;
+        // if (gl_FragColor.a < 0.1) discard;
+    }
+    if (u_lighting) {
+        vec3 lightVec = u_lightPos - vec3(v_VertPos);
+        float r = length(lightVec);
+        // if (r<2.0) {
+        //     gl_FragColor = vec4(1.0,0.0,0.0,1.0);
+        // }
+
+        // gl_FragColor = vec4(vec3(gl_FragColor)/(r*r), 1);
+
+        vec3 L = normalize(lightVec);
+        vec3 N = normalize(v_Normal);
+        float nDotL = max(dot(N, L), 0.0);
+
+        vec3 R = reflect(-L, N);
+        vec3 E = normalize(u_cameraPos-vec3(v_VertPos));
+        float specular = pow(max(dot(E,R), 0.0), 10.0) * 0.5;
+
+        vec3 diffuse = vec3(gl_FragColor) * nDotL * 0.7;
+        vec3 ambient = vec3(gl_FragColor) * 0.4;
+        gl_FragColor = vec4(specular+diffuse+ambient, 1.0);
+    }
 }
 `;
 
@@ -53,8 +85,13 @@ let a_uv;
 let a_normal;
 let u_ShowNormals;
 let uTexture0;
+let u_lightPos;
+let u_cameraPos;
+let u_lighting;
+let u_NormalMatrix;
+let u_spotlight;
 
-let g_eye = [3, 0, 2]
+let g_eye = [10, 1, 10]
 let g_at = [0, 0, 1]
 let g_up = [0, 1, 0]
 
@@ -67,13 +104,13 @@ let map = []
 
 let diamond_count = 0
 
-let g_lightCubes = false
-
 const g_viewMat = new Matrix4()
 const g_projMat = new Matrix4()
 let g_sky = null
 let g_crosshair = null
 let g_cow = null
+
+let g_lightPos = [0, 2, 0]
 
 function main() {
     setupWebGL()
@@ -147,10 +184,35 @@ function createMap() {
     map.push(s2)
 }
 
+let lightSliders = []
+let g_animateLight = false
+let g_lightOn = true
+let g_isSpotlight = false
+
 function addActionsForHtmlUI() {
     if (!diamond_display) diamond_display = document.getElementById('diamond-count')
 
     document.getElementById('normals-btn').onclick = toggleNormals
+    document.getElementById('animate-light-btn').onclick = () => {g_animateLight = !g_animateLight}
+    document.getElementById('light-on-btn').onclick = () => {g_lightOn = !g_lightOn}
+
+    document.getElementById('light-type-btn').onclick = () => {
+        g_isSpotlight = !g_isSpotlight
+        document.getElementById('light-type-btn').textContent = g_isSpotlight ? "Switch to Point Light" : "Switch to Spotlight"
+    }
+
+    const lightSlide = (ev, id) => {
+        if (ev.buttons == 1) {
+            g_lightPos[id] = lightSliders[id].value/100;
+            renderPage()
+        }
+    }
+    lightSliders.push(document.getElementById('lightSlideX'))
+    lightSliders.push(document.getElementById('lightSlideY'))
+    lightSliders.push(document.getElementById('lightSlideZ'))
+    for (let i = 0; i < 3; i++) {
+        lightSliders[i].addEventListener('mousemove', ev => lightSlide(ev, i))
+    }
 
     document.onkeydown = keydown
     canvas.onmousedown = (ev) => {
@@ -247,6 +309,12 @@ function renderPage() {
     g_projMat.setPerspective(60, canvas.width/canvas.height, .1, 100)
     gl.uniformMatrix4fv(u_ProjectionMatrix, false, g_projMat.elements)
 
+    gl.uniform3f(u_lightPos, g_lightPos[0], g_lightPos[1], g_lightPos[2])
+    gl.uniform3f(u_cameraPos, g_eye[0], g_eye[1], g_eye[2])
+    gl.uniform1i(u_lighting, g_lightOn);
+    gl.uniform1i(u_spotlight, g_isSpotlight);
+
+
     if (!g_sky) {
         g_sky = new Cube()
         g_sky.scale = [-100, -100, -100]
@@ -259,13 +327,20 @@ function renderPage() {
         map[i].render()
     }
 
-    // Cow uses a 2x-scaled view matrix.
-    g_viewMat.scale(2, 2, 2)
-    gl.uniformMatrix4fv(u_ViewMatrix, false, g_viewMat.elements)
-
-    g_lightCubes = true
     renderCow(cowPos[0], cowPos[1], cowAngle, animVals[0], animVals[1], animVals[2])
-    g_lightCubes = false
+
+    let light = new Sphere()
+    light.scale = [-0.2, -0.2, -0.2]
+    light.textureBlend = 0.0
+    if (g_animateLight) {
+        g_lightPos[0] = Math.cos(performance.now()/1000)*5
+        lightSliders[0].value = g_lightPos[0]*100
+    }
+    light.pos[0] = g_lightPos[0]
+    light.pos[1] = g_lightPos[1]
+    light.pos[2] = g_lightPos[2]
+    light.color = [2, 2, 0, 1]
+    light.render()
 
     renderCrosshair()
 }
@@ -563,16 +638,13 @@ function tick() {
         }
 
         // Cow breaks blocks: find closest surface block (y == -1) within BREAK_R2.
-        // Scaled view matrix doubles cow world position.
-        const cowWorldX = cowPos[0] * 2
-        const cowWorldZ = cowPos[1] * 2
         let closestIdx = -1
         let closestD2 = BREAK_R2
         for (let idx = 0; idx < map.length; idx++) {
             const bp = map[idx].pos
             if (bp[1] !== -1) continue
-            const ex = cowWorldX - bp[0]
-            const ez = cowWorldZ - bp[2]
+            const ex = cowPos[0] - bp[0]
+            const ez = cowPos[1] - bp[2]
             const d2 = ex*ex + ez*ez
             if (d2 < closestD2) {
                 closestD2 = d2
@@ -690,7 +762,11 @@ const connectVariablesToGLSL = () => {
     }
 
     u_ShowNormals = gl.getUniformLocation(gl.program, 'u_ShowNormals');
-
+    u_lightPos = gl.getUniformLocation(gl.program, 'u_lightPos');
+    u_cameraPos = gl.getUniformLocation(gl.program, 'u_cameraPos');
+    u_lighting = gl.getUniformLocation(gl.program, 'u_lighting');
+    u_spotlight = gl.getUniformLocation(gl.program, 'u_spotlight');
+    u_NormalMatrix = gl.getUniformLocation(gl.program, 'u_NormalMatrix')
 }
 
 function toggleNormals() {
