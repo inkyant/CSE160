@@ -12,10 +12,21 @@ THREE.Mesh.prototype.raycast = acceleratedRaycast;
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
 
-const renderer = new THREE.WebGLRenderer();
+const canvas = document.getElementById('canvas')
+const renderer = new THREE.WebGLRenderer({
+    antialias: true,
+    canvas
+});
 renderer.setSize( window.innerWidth, window.innerHeight );
-document.body.appendChild( renderer.domElement );
 
+const loader = new THREE.TextureLoader();
+const texture = loader.load(
+'background_sunset.jpg',
+() => {
+    texture.mapping = THREE.EquirectangularReflectionMapping;
+    texture.colorSpace = THREE.SRGBColorSpace;
+    scene.background = texture;
+});
 
 camera.position.z = 5;
 
@@ -48,13 +59,25 @@ const _right = new THREE.Vector3();
 const _up = new THREE.Vector3( 0, 1, 0 );
 
 // model
-// const loader = new GLTFLoader();
-// const gltf = await loader.loadAsync( 'Duck.glb' );
-// const bbox = new THREE.Box3().setFromObject( gltf.scene );
-// const size = bbox.getSize( new THREE.Vector3() );
-// const maxDim = Math.max( size.x, size.y, size.z );
-// gltf.scene.scale.setScalar( 2 / maxDim );
-// scene.add( gltf.scene );
+const loaderDuck = new GLTFLoader();
+const gltf = await loaderDuck.loadAsync( 'Duck.glb' );
+const bbox = new THREE.Box3().setFromObject( gltf.scene );
+const size = bbox.getSize( new THREE.Vector3() );
+const maxDim = Math.max( size.x, size.y, size.z );
+gltf.scene.scale.setScalar( 2 / maxDim );
+scene.add( gltf.scene );
+
+loader.load('mona.jpg', (texture) => {
+  texture.colorSpace = THREE.SRGBColorSpace;
+  const material = new THREE.MeshPhongMaterial({
+    map: texture,
+  });
+  const geometry = new THREE.BoxGeometry( IMAGE_MAX_SIZE, IMAGE_MAX_SIZE, 1 );
+  const cube = new THREE.Mesh(geometry, material);
+  cube.position.x = 100
+  cube.position.z = -IMAGE_DIST
+  scene.add(cube);
+});
 
 // taj mahal
 const loader2 = new OBJLoader();
@@ -108,19 +131,30 @@ function animate( time ) {
 renderer.setAnimationLoop( animate );
 
 let grid = null
-function onPixel(x, y, r, g, b, a) {
-    const geometry = new THREE.BoxGeometry( 1, 1, 1 );
+const sharedGeometry = new THREE.BoxGeometry( 1, 1, 1 );
+const cubeCache = new Array(IMAGE_MAX_SIZE * IMAGE_MAX_SIZE).fill(null);
 
-    const material = new THREE.MeshPhongMaterial( { color: new THREE.Color(r/255, g/255, b/255) } );
-    const cube = new THREE.Mesh( geometry, material );
-    cube.position.x = x - IMAGE_MAX_SIZE/2
-    cube.position.y = IMAGE_MAX_SIZE/2 - y
-    cube.position.z = -IMAGE_DIST
-    if (grid != null && x < IMAGE_MAX_SIZE && y < IMAGE_MAX_SIZE) {
-        cube.scale.set(1, 1, grid[x * IMAGE_MAX_SIZE + y]*40)
-        cube.position.z = -IMAGE_DIST + grid[x * IMAGE_MAX_SIZE + y]*20
+function onPixel(x, y, r, g, b, a) {
+    if (x >= IMAGE_MAX_SIZE || y >= IMAGE_MAX_SIZE) return;
+
+    const idx = y * IMAGE_MAX_SIZE + x;
+    let cube = cubeCache[idx];
+
+    if (cube === null) {
+        cube = new THREE.Mesh( sharedGeometry, new THREE.MeshPhongMaterial() );
+        cubeCache[idx] = cube;
+        scene.add( cube );
     }
-    scene.add( cube );
+
+    cube.material.color.setRGB(r/255, g/255, b/255, THREE.SRGBColorSpace);
+    cube.position.set(x - IMAGE_MAX_SIZE/2, IMAGE_MAX_SIZE/2 - y, -IMAGE_DIST);
+    cube.scale.set(1, 1, 1);
+    cube.visible = true;
+
+    if (grid !== null) {
+        cube.scale.set(1, 1, grid[x * IMAGE_MAX_SIZE + y]*40);
+        cube.position.z = -IMAGE_DIST + grid[x * IMAGE_MAX_SIZE + y]*20;
+    }
 }
 
 // image loading
@@ -135,16 +169,13 @@ function loadImage() {
 
         const { data } = ctx.getImageData(0, 0, img.width, img.height);
 
-        let factor = 1
-        if (img.height > IMAGE_MAX_SIZE || img.width > IMAGE_MAX_SIZE) {
-            factor = (Math.min(img.height, img.width) / IMAGE_MAX_SIZE)|0
-            console.log("image is large, factor:", factor)
-        }
+        let factorH = (img.height / IMAGE_MAX_SIZE)|0
+        let factorW = (img.width / IMAGE_MAX_SIZE)|0;
 
-        for (let y = 0; y < img.height; y += factor) {
-            for (let x = 0; x < img.width; x += factor) {
+        for (let y = 0; y < img.height; y += factorH) {
+            for (let x = 0; x < img.width; x += factorW) {
                 const i = (y * img.width + x) * 4;
-                onPixel(x/factor, y/factor, data[i], data[i+1], data[i+2], data[i+3]);
+                onPixel((x/factorW)|0, (y/factorH)|0, data[i], data[i+1], data[i+2], data[i+3]);
             }
         }
     };
@@ -193,5 +224,9 @@ async function loadObjHeightMap(src) {
 }
 
 document.getElementById('load-taj').addEventListener('click', () => {
-    loadObjHeightMap('tajmahal.obj');
+    loadObjHeightMap('tajmahal.obj').then(() => {
+        if (currentImg !== null) {
+            loadImage()
+        }
+    });
 });
