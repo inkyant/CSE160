@@ -9,14 +9,17 @@
     {
     "imports": {
         "three": "https://cdn.jsdelivr.net/npm/three@v0.184.0/build/three.module.js",
-        "three/addons/": "https://cdn.jsdelivr.net/npm/three@v0.184.0/examples/jsm/"
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@v0.184.0/examples/jsm/",
+        "three-mesh-bvh": "https://esm.sh/three-mesh-bvh?external=three"
     }
     }
     </script>
   </head>
 
   <body>
-    
+    <input type="file" id="upload" accept="image/*">
+    <button id="load-mona">Load Mona</button>
+    <button id="load-taj">Load Taj Mahal Height Map</button>
     <script type="module" src="asg5.js"></script>
   </body>
 </html>
