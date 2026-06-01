@@ -1,6 +1,6 @@
 
 import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
 import { computeBoundsTree, disposeBoundsTree, acceleratedRaycast } from 'three-mesh-bvh';
@@ -28,10 +28,10 @@ const texture = loader.load(
     scene.background = texture;
 });
 
-camera.position.z = 5;
+camera.rotation.y = -Math.PI / 2;
 
 
-const IMAGE_MAX_SIZE = 100 // max size of smaller dim, so image is larger actually
+const IMAGE_MAX_SIZE = 100
 const IMAGE_DIST = 300
 let currentImg = null
 
@@ -44,78 +44,47 @@ scene.add(light);
 scene.add( new THREE.AmbientLight(0xFFFFFF, .5) )
 
 // controls
-const controls = new OrbitControls( camera, renderer.domElement );
-controls.enableDamping = true;
-controls.dampingFactor = 0.05;
+const controls = new PointerLockControls( camera, renderer.domElement );
+renderer.domElement.addEventListener( 'click', () => controls.lock() );
 
-// Keyboard state
 const keys = {};
 window.addEventListener( 'keydown', e => { keys[e.code] = true; } );
 window.addEventListener( 'keyup',   e => { keys[e.code] = false; } );
-
 const moveSpeed = 0.5;
-const _forward = new THREE.Vector3();
-const _right = new THREE.Vector3();
-const _up = new THREE.Vector3( 0, 1, 0 );
 
 // model
 const loaderDuck = new GLTFLoader();
-const gltf = await loaderDuck.loadAsync( 'Duck.glb' );
-const bbox = new THREE.Box3().setFromObject( gltf.scene );
+const duck = await loaderDuck.loadAsync( 'Duck.glb' );
+const bbox = new THREE.Box3().setFromObject( duck.scene );
 const size = bbox.getSize( new THREE.Vector3() );
 const maxDim = Math.max( size.x, size.y, size.z );
-gltf.scene.scale.setScalar( 2 / maxDim );
-scene.add( gltf.scene );
+duck.scene.scale.setScalar( 2 / maxDim );
+duck.scene.position.x = 5
+duck.scene.position.z = -3
+duck.scene.rotateY(-Math.PI/2)
+scene.add( duck.scene );
 
 loader.load('mona.jpg', (texture) => {
   texture.colorSpace = THREE.SRGBColorSpace;
   const material = new THREE.MeshPhongMaterial({
     map: texture,
   });
-  const geometry = new THREE.BoxGeometry( IMAGE_MAX_SIZE, IMAGE_MAX_SIZE, 1 );
+  const geometry = new THREE.BoxGeometry( IMAGE_MAX_SIZE, 1, IMAGE_MAX_SIZE );
   const cube = new THREE.Mesh(geometry, material);
-  cube.position.x = 100
-  cube.position.z = -IMAGE_DIST
+  cube.position.z = 100
+  cube.position.y = -IMAGE_DIST
+  cube.rotateY(-Math.PI/2)
   scene.add(cube);
 });
 
 // taj mahal
 const loader2 = new OBJLoader();
 const taj = await loader2.loadAsync( 'tajmahal.obj' );
-taj.rotateOnAxis(new THREE.Vector3(1, 0, 0), Math.PI/2)
-taj.position.x = -150
-taj.position.z = -IMAGE_DIST
+taj.position.y = -IMAGE_DIST
+taj.position.z = -100
 taj.scale.setScalar(.15)
 scene.add( taj );
 
-
-function handleKeyboard() {
-    // Derive forward and right from current camera orientation, ignoring vertical tilt for WASD
-    camera.getWorldDirection( _forward );
-    _forward.y = 0;
-    _forward.normalize();
-    _right.crossVectors( _forward, _up );
-
-    if ( keys['KeyW'] || keys['ArrowUp'] )    camera.position.addScaledVector( _forward,  moveSpeed );
-    if ( keys['KeyS'] || keys['ArrowDown'] )  camera.position.addScaledVector( _forward, -moveSpeed );
-    if ( keys['KeyA'] || keys['ArrowLeft'] )  camera.position.addScaledVector( _right,   -moveSpeed );
-    if ( keys['KeyD'] || keys['ArrowRight'] ) camera.position.addScaledVector( _right,    moveSpeed );
-    if ( keys['KeyQ'] )                       camera.position.y -= moveSpeed;
-    if ( keys['KeyE'] )                       camera.position.y += moveSpeed;
-
-    // Keep the orbit target in sync so OrbitControls doesn't snap back
-    if ( keys['KeyW'] || keys['KeyS'] || keys['KeyA'] || keys['KeyD'] || keys['KeyQ'] || keys['KeyE'] ||
-         keys['ArrowUp'] || keys['ArrowDown'] || keys['ArrowLeft'] || keys['ArrowRight'] ) {
-        controls.target.addScaledVector( _forward,
-            ( (keys['KeyW'] || keys['ArrowUp'])   ? moveSpeed : 0 ) -
-            ( (keys['KeyS'] || keys['ArrowDown']) ? moveSpeed : 0 ) );
-        controls.target.addScaledVector( _right,
-            ( (keys['KeyD'] || keys['ArrowRight']) ? moveSpeed : 0 ) -
-            ( (keys['KeyA'] || keys['ArrowLeft'])  ? moveSpeed : 0 ) );
-        if ( keys['KeyQ'] ) controls.target.y -= moveSpeed;
-        if ( keys['KeyE'] ) controls.target.y += moveSpeed;
-    }
-}
 
 window.addEventListener( 'resize', () => {
     camera.aspect = window.innerWidth / window.innerHeight;
@@ -123,9 +92,18 @@ window.addEventListener( 'resize', () => {
     renderer.setSize( window.innerWidth, window.innerHeight );
 } );
 
-function animate( time ) {
+function handleKeyboard() {
+    if ( !controls.isLocked ) return;
+    if ( keys['KeyW'] || keys['ArrowUp'] )    controls.moveForward( moveSpeed );
+    if ( keys['KeyS'] || keys['ArrowDown'] )  controls.moveForward( -moveSpeed );
+    if ( keys['KeyA'] || keys['ArrowLeft'] )  controls.moveRight( -moveSpeed );
+    if ( keys['KeyD'] || keys['ArrowRight'] ) controls.moveRight( moveSpeed );
+    if ( keys['KeyQ'] )                       camera.position.y -= moveSpeed;
+    if ( keys['KeyE'] )                       camera.position.y += moveSpeed;
+}
+
+function animate() {
     handleKeyboard();
-    controls.update();
     renderer.render( scene, camera );
 }
 renderer.setAnimationLoop( animate );
@@ -147,13 +125,13 @@ function onPixel(x, y, r, g, b, a) {
     }
 
     cube.material.color.setRGB(r/255, g/255, b/255, THREE.SRGBColorSpace);
-    cube.position.set(x - IMAGE_MAX_SIZE/2, IMAGE_MAX_SIZE/2 - y, -IMAGE_DIST);
+    cube.position.set(IMAGE_MAX_SIZE/2 - y, -IMAGE_DIST, x - IMAGE_MAX_SIZE/2);
     cube.scale.set(1, 1, 1);
     cube.visible = true;
 
     if (grid !== null) {
-        cube.scale.set(1, 1, grid[x * IMAGE_MAX_SIZE + y]*40);
-        cube.position.z = -IMAGE_DIST + grid[x * IMAGE_MAX_SIZE + y]*20;
+        cube.scale.set(1, grid[x * IMAGE_MAX_SIZE + y]*50, 1);
+        cube.position.y = -IMAGE_DIST + grid[x * IMAGE_MAX_SIZE + y]*25;
     }
 }
 
