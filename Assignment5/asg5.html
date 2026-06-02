@@ -5,6 +5,42 @@
     <meta charset="utf-8" />
     <title>Assignment 5</title>
 
+    <style>
+      #speech-bubble {
+        position: absolute;
+        display: none;
+        transform: translate(-50%, -100%);
+        max-width: 220px;
+        padding: 12px 16px;
+        background: #fff;
+        color: #222;
+        border-radius: 14px;
+        font-family: sans-serif;
+        font-size: 16px;
+        line-height: 1.3;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+        pointer-events: none;
+        user-select: none;
+      }
+      #speech-bubble::after {
+        content: "";
+        position: absolute;
+        left: 50%;
+        bottom: -10px;
+        transform: translateX(-50%);
+        border-width: 10px 10px 0 10px;
+        border-style: solid;
+        border-color: #fff transparent transparent transparent;
+      }
+      #speech-bubble .hint {
+        display: block;
+        margin-top: 8px;
+        font-size: 12px;
+        color: #888;
+        font-style: italic;
+      }
+    </style>
+
     <script type="importmap">
     {
     "imports": {
@@ -17,11 +53,13 @@
   </head>
 
   <body>
-    <button id="load-mona">Load Mona</button>
-    <button id="load-taj">Load Taj Mahal Height Map</button>
+    <!-- <button id="load-mona">Load Mona</button>
+    <button id="load-taj">Load Taj Mahal Height Map</button> -->
     
     <canvas id="canvas"></canvas>
-    
+
+    <div id="speech-bubble"></div>
+
     <input type="file" id="upload" accept="image/*">
     <script type="module" src="asg5.js"></script>
   </body>

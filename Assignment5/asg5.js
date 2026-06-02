@@ -33,12 +33,12 @@ camera.rotation.y = -Math.PI / 2;
 
 const IMAGE_MAX_SIZE = 100
 const IMAGE_DIST = 300
-let currentImg = null
+let currentImg = 'mona.jpg'
 
 // light
 const intensity = 3;
 const light = new THREE.DirectionalLight(0xFFFFFF, intensity);
-light.position.set(-1, 2, 4);
+light.position.set(0, 10, 0);
 scene.add(light);
 
 scene.add( new THREE.AmbientLight(0xFFFFFF, .5) )
@@ -63,6 +63,72 @@ duck.scene.position.x = 5
 duck.scene.position.z = -3
 duck.scene.rotateY(-Math.PI/2)
 scene.add( duck.scene );
+
+// talking duck
+const duckBaseY = duck.scene.position.y;
+const DUCK_MESSAGES = [
+    "Quack! Isn't this sunset great? Click here to look around!",
+    "Use W A S D to move, also look below us! What is going on?",
+    "Is that the Taj Mahal and the Mona Lisa? Can you figure out what happened to the middle one?",
+    "You can use Q and E to move down/up and get a better look. Once you have, press Escape, scroll down and choose your own file to be loaded..."
+];
+const CHAR_DELAY = 45; // ms per revealed character
+const bubble = document.getElementById('speech-bubble');
+const bubbleWorldPos = new THREE.Vector3();
+
+let msgIndex = 0;     // which message is showing
+let typing = true;    // text is actively revealing (duck bobs while true)
+let msgStart = -1;    // timestamp the current message began revealing
+
+function updateTalking(time) {
+    if (msgStart < 0) msgStart = time;
+
+    const message = DUCK_MESSAGES[msgIndex];
+
+    // reveal the message one character at a time
+    const shown = Math.floor((time - msgStart) / CHAR_DELAY);
+    if (typing && shown >= message.length) {
+        typing = false;
+        duck.scene.position.y = duckBaseY; // settle back down
+    }
+
+    // animate duck
+    if (typing) duck.scene.position.y = duckBaseY + Math.sin(time * 0.005) * 0.3;
+
+    const text = typing ? message.slice(0, shown) : message;
+    const hint = (!typing && msgIndex < DUCK_MESSAGES.length - 1)
+        ? '<span class="hint">(press G to continue)</span>' : '';
+    bubble.innerHTML = text + hint;
+
+    // keep the bubble pinned above the duck on screen
+    duck.scene.getWorldPosition(bubbleWorldPos);
+    bubbleWorldPos.y += 1.5;
+    bubbleWorldPos.project(camera);
+
+    if (bubbleWorldPos.z > 1) {
+        bubble.style.display = 'none'; // duck is behind the camera
+    } else {
+        bubble.style.display = 'block';
+        bubble.style.left = (bubbleWorldPos.x * 0.5 + 0.5) * window.innerWidth + 'px';
+        bubble.style.top  = (-bubbleWorldPos.y * 0.5 + 0.5) * window.innerHeight + 'px';
+    }
+}
+
+// G advances the dialogue: finish the current line, then step to the next one.
+function advanceDialogue() {
+    if (typing) {
+        typing = false; // reveal the rest of the current message instantly
+        duck.scene.position.y = duckBaseY;
+    } else if (msgIndex < DUCK_MESSAGES.length - 1) {
+        msgIndex++;
+        typing = true;
+        msgStart = -1; // restart reveal timer on the next frame
+    }
+}
+
+window.addEventListener('keydown', e => {
+    if (e.code === 'KeyG' && !e.repeat) advanceDialogue();
+});
 
 loader.load('mona.jpg', (texture) => {
   texture.colorSpace = THREE.SRGBColorSpace;
@@ -102,7 +168,8 @@ function handleKeyboard() {
     if ( keys['KeyE'] )                       camera.position.y += moveSpeed;
 }
 
-function animate() {
+function animate( time ) {
+    updateTalking( time );
     handleKeyboard();
     renderer.render( scene, camera );
 }
@@ -170,11 +237,6 @@ document.getElementById('upload').addEventListener('change', (event) => {
     reader.readAsDataURL(file);
 });
 
-document.getElementById('load-mona').addEventListener('click', () => {
-    currentImg = 'mona.jpg';
-    loadImage();
-});
-
 async function loadObjHeightMap(src) {
     const obj = await new OBJLoader().loadAsync(src);
     obj.traverse(child => { if (child.isMesh) child.geometry.computeBoundsTree(); });
@@ -201,10 +263,8 @@ async function loadObjHeightMap(src) {
     }
 }
 
-document.getElementById('load-taj').addEventListener('click', () => {
-    loadObjHeightMap('tajmahal.obj').then(() => {
-        if (currentImg !== null) {
-            loadImage()
-        }
-    });
+loadObjHeightMap('tajmahal.obj').then(() => {
+    if (currentImg !== null) {
+        loadImage()
+    }
 });
