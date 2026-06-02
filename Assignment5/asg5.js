@@ -60,7 +60,8 @@ const size = bbox.getSize( new THREE.Vector3() );
 const maxDim = Math.max( size.x, size.y, size.z );
 duck.scene.scale.setScalar( 2 / maxDim );
 duck.scene.position.x = 5
-duck.scene.position.z = -3
+duck.scene.position.z = 0
+duck.scene.position.y = -1
 duck.scene.rotateY(-Math.PI/2)
 scene.add( duck.scene );
 
