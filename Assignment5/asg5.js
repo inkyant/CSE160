@@ -35,13 +35,18 @@ const IMAGE_MAX_SIZE = 100
 const IMAGE_DIST = 300
 let currentImg = 'mona.jpg'
 
-// light
+// light downward
 const intensity = 3;
 const light = new THREE.DirectionalLight(0xFFFFFF, intensity);
 light.position.set(0, 10, 0);
 scene.add(light);
 
 scene.add( new THREE.AmbientLight(0xFFFFFF, .5) )
+
+// light from sun
+const sunlight = new THREE.PointLight( 0xfbda52, 3, 0 );
+sunlight.position.set( 0, 0, 100 );
+scene.add( sunlight );
 
 // controls
 const controls = new PointerLockControls( camera, renderer.domElement );
@@ -51,6 +56,45 @@ const keys = {};
 window.addEventListener( 'keydown', e => { keys[e.code] = true; } );
 window.addEventListener( 'keyup',   e => { keys[e.code] = false; } );
 const moveSpeed = 0.5;
+
+// hand is child of camera
+scene.add( camera );
+
+const hand = new THREE.Group();
+const skin = new THREE.MeshPhongMaterial( { color: 0xe0ac8b } );
+
+const PALM_RADIUS = 0.09;
+const PALM_LENGTH = 0.42;
+const palm = new THREE.Mesh(
+    new THREE.CapsuleGeometry( PALM_RADIUS, PALM_LENGTH, 6, 12 ), skin );
+palm.position.y = -.25
+hand.add( palm );
+
+const palmFront = -( PALM_LENGTH / 2 + PALM_RADIUS );
+
+function makeFinger( length, radius ) {
+    const finger = new THREE.Mesh(
+        new THREE.CylinderGeometry( radius, radius, length, 3 ), skin );
+    return finger;
+}
+
+const fingerLengths = [ 0.18, 0.22, 0.21, 0.16 ];
+const FINGER_SPACING = 0.06;
+fingerLengths.forEach( ( len, i ) => {
+    const finger = makeFinger( len, 0.025 );
+    const x = ( i - ( fingerLengths.length - 1 ) / 2 ) * FINGER_SPACING;
+    finger.position.set( x, 0.01, palmFront - len / 2 );
+    hand.add( finger );
+} );
+
+const thumb = makeFinger( 0.14, 0.03 );
+thumb.position.set( PALM_RADIUS + 0.04, -0.02, palmFront + 0.12 );
+thumb.rotation.z = -Math.PI / 5;
+hand.add( thumb );
+
+hand.position.set( 0.3, -0.28, -0.9 );
+hand.rotation.set( -0.15, -0.3, 0.15 );
+camera.add( hand );
 
 // model
 const loaderDuck = new GLTFLoader();
@@ -68,7 +112,7 @@ scene.add( duck.scene );
 // talking duck
 const duckBaseY = duck.scene.position.y;
 const DUCK_MESSAGES = [
-    "Quack! Isn't this sunset great? Click here to look around!",
+    "Quack! Isn't this sunset great? Click here to look around (pointer lock).",
     "Use W A S D to move, also look below us! What is going on?",
     "Is that the Taj Mahal and the Mona Lisa? Can you figure out what happened to the middle one?",
     "You can use Q and E to move down/up and get a better look. Once you have, press Escape, scroll down and choose your own file to be loaded..."
