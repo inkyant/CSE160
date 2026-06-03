@@ -19,20 +19,20 @@ const renderer = new THREE.WebGLRenderer({
 });
 renderer.setSize( window.innerWidth, window.innerHeight );
 
+scene.background = new THREE.Color( 0x15151c );
+let sunsetTexture = null;
 const loader = new THREE.TextureLoader();
-const texture = loader.load(
-'background_sunset.jpg',
-() => {
-    texture.mapping = THREE.EquirectangularReflectionMapping;
-    texture.colorSpace = THREE.SRGBColorSpace;
-    scene.background = texture;
-});
+loader.load( 'background_sunset.jpg', ( t ) => {
+    t.mapping = THREE.EquirectangularReflectionMapping;
+    t.colorSpace = THREE.SRGBColorSpace;
+    sunsetTexture = t; // assigned to scene.background only once the player exits
+} );
 
 camera.rotation.y = -Math.PI / 2;
 
 
 const IMAGE_MAX_SIZE = 100
-const IMAGE_DIST = 300
+const IMAGE_DIST = 400
 let currentImg = 'mona.jpg'
 
 // light downward
@@ -41,11 +41,14 @@ const light = new THREE.DirectionalLight(0xFFFFFF, intensity);
 light.position.set(0, 10, 0);
 scene.add(light);
 
-scene.add( new THREE.AmbientLight(0xFFFFFF, .5) )
+scene.add( new THREE.AmbientLight(0xFFFFFF, .7) )
 
-// light from sun
+const hallLight = new THREE.PointLight( 0xfff2dd, 40, 0 );
+hallLight.position.set( 15, 7, 0 );
+scene.add( hallLight );
+
 const sunlight = new THREE.PointLight( 0xfbda52, 3, 0 );
-sunlight.position.set( 0, 0, 100 );
+sunlight.position.set( 0, -IMAGE_DIST + 60, 100 );
 scene.add( sunlight );
 
 // controls
@@ -55,7 +58,6 @@ renderer.domElement.addEventListener( 'click', () => controls.lock() );
 const keys = {};
 window.addEventListener( 'keydown', e => { keys[e.code] = true; } );
 window.addEventListener( 'keyup',   e => { keys[e.code] = false; } );
-const moveSpeed = 0.5;
 
 // hand is child of camera
 scene.add( camera );
@@ -96,84 +98,342 @@ hand.position.set( 0.3, -0.28, -0.9 );
 hand.rotation.set( -0.15, -0.3, 0.15 );
 camera.add( hand );
 
-// model
+// collision
+const colliders = [];
+const stepBoxes = new Set();
+
+function addBox( w, h, d, x, y, z, color ) {
+    return addCollider( new THREE.BoxGeometry( w, h, d ), color, x, y, z );
+}
+
+// add an arbitrary mesh as a collider
+function addCollider( geometry, color, x, y, z ) {
+    const mesh = new THREE.Mesh( geometry, new THREE.MeshPhongMaterial( { color } ) );
+    mesh.position.set( x, y, z );
+    mesh.updateMatrixWorld( true );
+    const box = new THREE.Box3().setFromObject( mesh );
+    colliders.push( box );
+    scene.add( mesh );
+    return box;
+}
+
+const WALL_COLOR = 0x8a8a93;
+const FLOOR_COLOR = 0x9d9da6;
+const STEP_COLOR = 0xb9b4ac;
+
+// hallway
+stepBoxes.add( addBox( 90, 2, 8, 15, -1, 0, FLOOR_COLOR ) );
+addBox( 1, 9, 8, -30, 4.5, 0, WALL_COLOR );
+addBox( 72, 9, 1, 6, 4.5, 3.5, WALL_COLOR );
+addBox( 72, 9, 1, 6, 4.5, -3.5, WALL_COLOR );
+addBox( 72, 1, 8, 6, 9.5, 0, WALL_COLOR );
+
+// stair steps
+const STEP_DROP = 12;
+const STEP_STOP_ABOVE = 48;
+const STEP_COUNT = Math.floor( ( IMAGE_DIST - 4 - STEP_STOP_ABOVE ) / STEP_DROP ) + 1;
+const STEP_RADIUS = 75;
+const STEP_SIZE = 7;
+const STEP_SPACING = 20; // centre-to-centre arc length
+const STEP_DANGLE = STEP_SPACING / STEP_RADIUS;
+
+function stepCenter( i ) {
+    const angle = i * STEP_DANGLE;
+    return new THREE.Vector3(
+        STEP_RADIUS * Math.cos( angle ),
+        -4 - i * STEP_DROP,
+        STEP_RADIUS * Math.sin( angle ) );
+}
+
+// different shapes
+const STEP_R = STEP_SIZE / 2;
+const stepShapes = [
+    () => new THREE.BoxGeometry( STEP_SIZE, 1, STEP_SIZE ),
+    () => new THREE.CylinderGeometry( STEP_R, STEP_R, 1, 24 ),
+    () => new THREE.CylinderGeometry( STEP_R, STEP_R, 1, 6 ),      // hexagon
+    () => new THREE.CylinderGeometry( STEP_R, STEP_R, 1, 8 ),      // octagon
+    () => new THREE.CylinderGeometry( STEP_R, STEP_R, 1, 5 ),      // pentagon
+];
+
+for ( let i = 0; i < STEP_COUNT; i++ ) {
+    const c = stepCenter( i );
+    const geometry = stepShapes[ i % stepShapes.length ]();
+    const color = new THREE.Color().setHSL( ( i / STEP_COUNT ) % 1, 0.65, 0.55 );
+    stepBoxes.add( addCollider( geometry, color, c.x, c.y, c.z ) );
+}
+
+const GROUND_TOP = -IMAGE_DIST - 1;
+addBox( 360, 4, 360, 0, GROUND_TOP - 2, 0, 0x6f6a63 );
+
+// player physics
+const EYE_HEIGHT = 1.6;
+const PLAYER_RADIUS = 0.4;
+const GRAVITY = 32;
+const WALK_SPEED = 14;
+const JUMP_SPEED = 20;
+const STEP_UP = 0.7;
+const FALL_LIMIT = 16;
+
+const SPAWN = new THREE.Vector3( -26, EYE_HEIGHT, 0 );
+camera.position.copy( SPAWN );
+let velocityY = 0;
+let grounded = true;
+let wantJump = false;
+
+// respawn point
+const lastSafe = SPAWN.clone();
+let lastSafeIsStep = false;
+let flightUnlocked = false;
+const clock = new THREE.Clock();
+
+window.addEventListener( 'keydown', e => {
+    if ( e.code === 'Space' ) {
+        e.preventDefault();
+        if ( !e.repeat ) wantJump = true;
+    }
+} );
+
+function xzOverlap( b ) {
+    return camera.position.x + PLAYER_RADIUS > b.min.x &&
+           camera.position.x - PLAYER_RADIUS < b.max.x &&
+           camera.position.z + PLAYER_RADIUS > b.min.z &&
+           camera.position.z - PLAYER_RADIUS < b.max.z;
+}
+
+// collider for mona
+const HALF = IMAGE_MAX_SIZE / 2;
+function sculptureTop( wx, wz ) {
+    if ( grid === null ) return -Infinity;
+    const yi = Math.round( HALF - wx );
+    const xi = Math.round( wz + HALF );
+    if ( xi < 0 || xi >= IMAGE_MAX_SIZE || yi < 0 || yi >= IMAGE_MAX_SIZE ) return -Infinity;
+    const h = grid[ xi * IMAGE_MAX_SIZE + yi ];
+    if ( h <= 0 ) return -Infinity; // no column here
+    return -IMAGE_DIST + h * 50;
+}
+
+// stop the player walking into the sculpture
+function blockSculpture( prevX, prevZ ) {
+    const feet = camera.position.y - EYE_HEIGHT;
+    if ( sculptureTop( camera.position.x, prevZ ) > feet + STEP_UP ) camera.position.x = prevX;
+    if ( sculptureTop( camera.position.x, camera.position.z ) > feet + STEP_UP ) camera.position.z = prevZ;
+}
+
+// wall push
+function resolveHorizontal() {
+    const feet = camera.position.y - EYE_HEIGHT;
+    const eye = camera.position.y;
+    for ( const b of colliders ) {
+        if ( feet >= b.max.y - 0.05 || eye <= b.min.y + 0.05 ) continue;
+        const px = camera.position.x, pz = camera.position.z;
+        const ox = Math.min( px + PLAYER_RADIUS, b.max.x ) - Math.max( px - PLAYER_RADIUS, b.min.x );
+        const oz = Math.min( pz + PLAYER_RADIUS, b.max.z ) - Math.max( pz - PLAYER_RADIUS, b.min.z );
+        if ( ox <= 0 || oz <= 0 ) continue;
+        if ( ox < oz ) {
+            camera.position.x += px < ( b.min.x + b.max.x ) / 2 ? -ox : ox;
+        } else {
+            camera.position.z += pz < ( b.min.z + b.max.z ) / 2 ? -oz : oz;
+        }
+    }
+}
+
+function applyGravity( dt ) {
+    if ( wantJump && grounded ) { velocityY = JUMP_SPEED; grounded = false; }
+    wantJump = false;
+
+    const prevFeet = camera.position.y - EYE_HEIGHT;
+    velocityY -= GRAVITY * dt;
+    const newY = camera.position.y + velocityY * dt;
+    const feet = newY - EYE_HEIGHT;
+
+    let groundTop = -Infinity, support = null;
+    for ( const b of colliders ) {
+        if ( b.max.y <= prevFeet + STEP_UP && b.max.y > groundTop && xzOverlap( b ) ) {
+            groundTop = b.max.y;
+            support = b;
+        }
+    }
+    
+    const sTop = sculptureTop( camera.position.x, camera.position.z );
+    let onSculpture = false;
+    if ( sTop > groundTop && sTop <= prevFeet + STEP_UP ) {
+        groundTop = sTop; onSculpture = true;
+    }
+
+    if ( velocityY <= 0 && groundTop > -Infinity && feet <= groundTop ) {
+        camera.position.y = groundTop + EYE_HEIGHT;
+        velocityY = 0;
+        grounded = true;
+        if ( onSculpture ) {
+            lastSafe.set( camera.position.x, groundTop + EYE_HEIGHT, camera.position.z );
+            lastSafeIsStep = false;
+        } else {
+            // save safe pos
+            lastSafe.set( ( support.min.x + support.max.x ) / 2, groundTop + EYE_HEIGHT,
+                          ( support.min.z + support.max.z ) / 2 );
+            lastSafeIsStep = stepBoxes.has( support );
+        }
+    } else {
+        camera.position.y = newY;
+        grounded = false;
+    }
+
+    // missed jump
+    const fellOffStep = lastSafeIsStep && camera.position.y < lastSafe.y - FALL_LIMIT;
+    const fellOffWorld = camera.position.y < -IMAGE_DIST - 200;
+    if ( !grounded && ( fellOffStep || fellOffWorld ) ) {
+        camera.position.copy( lastSafe );
+        velocityY = 0;
+        grounded = true;
+    }
+}
+
+// fly after tutorial done
+function applyFlight( dt ) {
+    const v = WALK_SPEED * dt;
+    if ( keys['KeyE'] || keys['Space'] )        camera.position.y += v;
+    if ( keys['KeyQ'] || keys['ShiftLeft'] )    camera.position.y -= v;
+    velocityY = 0;
+    wantJump = false;
+    grounded = true;
+}
+
+function handleMovement( dt ) {
+    const step = WALK_SPEED * dt;
+    const px = camera.position.x, pz = camera.position.z;
+    if ( keys['KeyW'] || keys['ArrowUp'] )    controls.moveForward( step );
+    if ( keys['KeyS'] || keys['ArrowDown'] )  controls.moveForward( -step );
+    if ( keys['KeyA'] || keys['ArrowLeft'] )  controls.moveRight( -step );
+    if ( keys['KeyD'] || keys['ArrowRight'] ) controls.moveRight( step );
+    resolveHorizontal();
+    blockSculpture( px, pz );
+}
+
+
 const loaderDuck = new GLTFLoader();
 const duck = await loaderDuck.loadAsync( 'Duck.glb' );
-const bbox = new THREE.Box3().setFromObject( duck.scene );
-const size = bbox.getSize( new THREE.Vector3() );
-const maxDim = Math.max( size.x, size.y, size.z );
-duck.scene.scale.setScalar( 2 / maxDim );
-duck.scene.position.x = 5
-duck.scene.position.z = 0
-duck.scene.position.y = -1
-duck.scene.rotateY(-Math.PI/2)
-scene.add( duck.scene );
+const dbox = new THREE.Box3().setFromObject( duck.scene );
+const dsize = dbox.getSize( new THREE.Vector3() );
+duck.scene.scale.setScalar( 2 / Math.max( dsize.x, dsize.y, dsize.z ) );
 
-// talking duck
-const duckBaseY = duck.scene.position.y;
-const DUCK_MESSAGES = [
-    "Quack! Isn't this sunset great? Click here to look around (pointer lock).",
-    "Use W A S D to move, also look below us! What is going on?",
-    "Is that the Taj Mahal and the Mona Lisa? Can you figure out what happened to the middle one?",
-    "You can use Q and E to move down/up and get a better look. Once you have, press Escape, scroll down and choose your own file to be loaded..."
+const DUCK_YAW_FIX = -Math.PI / 2;
+duck.scene.position.set( 0, 0, 0 );
+duck.scene.rotation.set( 0, DUCK_YAW_FIX, 0 );
+const duckPivot = new THREE.Group();
+duckPivot.add( duck.scene );
+duckPivot.position.set( -22, 2, 0 );
+scene.add( duckPivot );
+
+const descentStep = ( i ) => stepCenter( i ).add( new THREE.Vector3( 0, 3, 0 ) );
+const WAYPOINTS = [
+    { pos: new THREE.Vector3( 8, 2, 0 ),
+      msg: "Quack! Welcome. Click the screen to look around, then use W A S D to walk. Follow me!" },
+    // { pos: new THREE.Vector3( 8, 2, 0 ),
+    //   msg: "Move the mouse to look around." },
+    { pos: new THREE.Vector3( 30, 2, 0 ),
+      msg: "We're almost outside, come on!" },
+    { pos: new THREE.Vector3( 54, 2.2, 0 ),
+      msg: "Whoa, what a sunset! By the way, you can use SPACE to jump, you'll need it up ahead..." },
+    { pos: descentStep( 0 ),
+      msg: "Can you jump to me? Get ready for some parkour!" },
+    { pos: descentStep( Math.round( STEP_COUNT * 0.1 )  ),
+      msg: "What's going on down there? Is that the Mona Lisa and the Taj Mahal? What's up with the middle one?" },
+    { pos: descentStep( Math.round( STEP_COUNT * 0.21 ) ),
+      msg: "Keep going... you got this!" },
+    { pos: descentStep( Math.round( STEP_COUNT * 0.42 ) ),
+      msg: "Notice anything odd about her yet? Keep following me round." },
+    { pos: descentStep( Math.round( STEP_COUNT * 0.63 ) ),
+      msg: "Getting warmer... almost down." },
+    { pos: descentStep( Math.round( STEP_COUNT * 0.84 ) ),
+      msg: "Last few steps — come around this way." },
+    { pos: descentStep( STEP_COUNT - 1 ),
+      msg: "Ta-daa! She's not flat at all — it's a 3-D sculpture shaped like the Taj Mahal, painted with the Mona Lisa. From up top you only saw the tops of the blocks!" },
+    { pos: descentStep( STEP_COUNT - 1 ).add( new THREE.Vector3( 0, 2, 0 ) ),
+      msg: "You've earned your wings! Press E / SPACE to fly up and Q / SHIFT to fly down — go get a close look. When you're ready, press Escape, scroll down, and load your OWN image into the illusion. Quack!" },
 ];
-const CHAR_DELAY = 45; // ms per revealed character
+
+const CHAR_DELAY = 42;
+const CATCHUP_DIST = 9;
+const CATCHUP_DELAY = 800;
+const DUCK_SPEED = 11;
+
 const bubble = document.getElementById('speech-bubble');
 const bubbleWorldPos = new THREE.Vector3();
+const lookTarget = new THREE.Vector3();
+const tmpDir = new THREE.Vector3();
 
-let msgIndex = 0;     // which message is showing
-let typing = true;    // text is actively revealing (duck bobs while true)
-let msgStart = -1;    // timestamp the current message began revealing
+let wp = 0;
+let typing = true;
+let msgStart = -1;
+let doneTime = -1;
+let arrived = false;
+let reachedTime = -1;
 
-function updateTalking(time) {
-    if (msgStart < 0) msgStart = time;
+// duck animation
+function updateDuck( time, dt ) {
+    const current = WAYPOINTS[wp];
+    const target = current.pos;
 
-    const message = DUCK_MESSAGES[msgIndex];
-
-    // reveal the message one character at a time
-    const shown = Math.floor((time - msgStart) / CHAR_DELAY);
-    if (typing && shown >= message.length) {
-        typing = false;
-        duck.scene.position.y = duckBaseY; // settle back down
+    tmpDir.copy( target ).sub( duckPivot.position );
+    const dist = tmpDir.length();
+    const stepLen = DUCK_SPEED * dt;
+    if ( dist > stepLen ) {
+        duckPivot.position.addScaledVector( tmpDir.multiplyScalar( 1 / dist ), stepLen );
+        arrived = false;
+    } else {
+        duckPivot.position.copy( target );
+        arrived = true;
     }
 
-    // animate duck
-    if (typing) duck.scene.position.y = duckBaseY + Math.sin(time * 0.005) * 0.3;
+    if ( arrived ) camera.getWorldPosition( lookTarget );
+    else lookTarget.copy( target );
+    tmpDir.set( lookTarget.x - duckPivot.position.x, 0, lookTarget.z - duckPivot.position.z );
+    if ( tmpDir.lengthSq() > 0.09 ) {
+        lookTarget.set( duckPivot.position.x + tmpDir.x, duckPivot.position.y, duckPivot.position.z + tmpDir.z );
+        duckPivot.lookAt( lookTarget );
+    }
 
-    const text = typing ? message.slice(0, shown) : message;
-    const hint = (!typing && msgIndex < DUCK_MESSAGES.length - 1)
-        ? '<span class="hint">(press G to continue)</span>' : '';
+    duck.scene.position.y = arrived ? Math.sin( time * 0.005 ) * 0.25 : 0;
+
+    // typewriter text
+    if ( msgStart < 0 ) msgStart = time;
+    const shown = Math.floor( ( time - msgStart ) / CHAR_DELAY );
+    if ( typing && shown >= current.msg.length ) { typing = false; doneTime = time; }
+
+    const last = wp >= WAYPOINTS.length - 1;
+    if ( last ) flightUnlocked = true; // final beat reached: grant flight right away
+    const text = typing ? current.msg.slice( 0, shown ) : current.msg;
+    const hint = ( !typing && !last ) ? '<span class="hint">(follow the duck)</span>' : '';
     bubble.innerHTML = text + hint;
 
-    // keep the bubble pinned above the duck on screen
-    duck.scene.getWorldPosition(bubbleWorldPos);
-    bubbleWorldPos.y += 1.5;
-    bubbleWorldPos.project(camera);
+    const playerClose = duckPivot.position.distanceTo( camera.position ) < CATCHUP_DIST;
+    if ( playerClose && reachedTime < 0 ) reachedTime = time;
+    else if ( !playerClose ) reachedTime = -1;
+    if ( !typing && arrived && !last && reachedTime >= 0 && time - reachedTime > CATCHUP_DELAY ) {
+        wp++; typing = true; msgStart = -1; arrived = false; reachedTime = -1;
+    }
 
-    if (bubbleWorldPos.z > 1) {
-        bubble.style.display = 'none'; // duck is behind the camera
+    // pin the bubble above the duck on screen
+    duckPivot.getWorldPosition( bubbleWorldPos );
+    bubbleWorldPos.y += 1.6;
+    bubbleWorldPos.project( camera );
+    if ( bubbleWorldPos.z > 1 ) {
+        bubble.style.display = 'none';
     } else {
         bubble.style.display = 'block';
-        bubble.style.left = (bubbleWorldPos.x * 0.5 + 0.5) * window.innerWidth + 'px';
-        bubble.style.top  = (-bubbleWorldPos.y * 0.5 + 0.5) * window.innerHeight + 'px';
+        bubble.style.left = ( bubbleWorldPos.x * 0.5 + 0.5 ) * window.innerWidth + 'px';
+        bubble.style.top  = ( -bubbleWorldPos.y * 0.5 + 0.5 ) * window.innerHeight + 'px';
     }
 }
 
-// G advances the dialogue: finish the current line, then step to the next one.
+// G fast-forwards the current line, then nudges the duck onward
 function advanceDialogue() {
-    if (typing) {
-        typing = false; // reveal the rest of the current message instantly
-        duck.scene.position.y = duckBaseY;
-    } else if (msgIndex < DUCK_MESSAGES.length - 1) {
-        msgIndex++;
-        typing = true;
-        msgStart = -1; // restart reveal timer on the next frame
-    }
+    if ( typing ) { typing = false; doneTime = -1e9; }
+    else if ( wp < WAYPOINTS.length - 1 ) { wp++; typing = true; msgStart = -1; arrived = false; reachedTime = -1; }
 }
-
-window.addEventListener('keydown', e => {
-    if (e.code === 'KeyG' && !e.repeat) advanceDialogue();
-});
+window.addEventListener( 'keydown', e => {
+    if ( e.code === 'KeyG' && !e.repeat ) advanceDialogue();
+} );
 
 loader.load('mona.jpg', (texture) => {
   texture.colorSpace = THREE.SRGBColorSpace;
@@ -186,6 +446,8 @@ loader.load('mona.jpg', (texture) => {
   cube.position.y = -IMAGE_DIST
   cube.rotateY(-Math.PI/2)
   scene.add(cube);
+  cube.updateMatrixWorld(true);
+  colliders.push(new THREE.Box3().setFromObject(cube));
 });
 
 // taj mahal
@@ -203,19 +465,21 @@ window.addEventListener( 'resize', () => {
     renderer.setSize( window.innerWidth, window.innerHeight );
 } );
 
-function handleKeyboard() {
-    if ( !controls.isLocked ) return;
-    if ( keys['KeyW'] || keys['ArrowUp'] )    controls.moveForward( moveSpeed );
-    if ( keys['KeyS'] || keys['ArrowDown'] )  controls.moveForward( -moveSpeed );
-    if ( keys['KeyA'] || keys['ArrowLeft'] )  controls.moveRight( -moveSpeed );
-    if ( keys['KeyD'] || keys['ArrowRight'] ) controls.moveRight( moveSpeed );
-    if ( keys['KeyQ'] )                       camera.position.y -= moveSpeed;
-    if ( keys['KeyE'] )                       camera.position.y += moveSpeed;
-}
+let exited = false;
 
 function animate( time ) {
-    updateTalking( time );
-    handleKeyboard();
+    const dt = Math.min( clock.getDelta(), 0.05 );
+
+    if ( controls.isLocked ) handleMovement( dt );
+    if ( flightUnlocked ) applyFlight( dt );
+    else applyGravity( dt );
+
+    if ( !exited && sunsetTexture && camera.position.x > 22 ) {
+        scene.background = sunsetTexture;
+        exited = true;
+    }
+
+    updateDuck( time, dt );
     renderer.render( scene, camera );
 }
 renderer.setAnimationLoop( animate );
